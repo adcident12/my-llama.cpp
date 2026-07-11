@@ -125,6 +125,17 @@ these clients need a *real* API key since llama-server has none configured,
 but most won't accept a blank field — put any placeholder string like
 `not-needed`.
 
+**Context/output token budget used throughout this section**: our `ctxSize`
+is 131072. Several clients ask you to declare an input-token limit and an
+output-token limit *separately*, and they must sum to no more than the total
+context window. We use **122880 input + 8192 output = 131072** everywhere
+that split is asked for — 8192 covers the `--reasoning-budget 2048` thinking
+cap plus a generous ~6k for the actual answer/code, while leaving the bulk of
+the window for input (file contents, tool defs, conversation history, which
+matter more than output length for agentic coding). If you find outputs
+getting cut off on big single-file generations, shift the split, e.g.
+16384 output / 114688 input.
+
 ### opencode
 
 Edit `~/.config/opencode/opencode.json` (global) or `opencode.json` in your
@@ -143,7 +154,10 @@ under the hood:
         "apiKey": "not-needed"
       },
       "models": {
-        "qwen3.6-mtp": { "name": "Qwen 3.6 MTP (Local)" }
+        "qwen3.6-mtp": {
+          "name": "Qwen 3.6 MTP (Local)",
+          "limit": { "context": 122880, "output": 8192 }
+        }
       }
     }
   },
@@ -151,8 +165,10 @@ under the hood:
 }
 ```
 
-Restart opencode fully after editing — providers aren't hot-reloaded. Switch
-models anytime with `/models` in the TUI.
+`limit.context` is input tokens only, `limit.output` is separate — matches
+the 122880/8192 split explained above. Restart opencode fully after editing
+— providers aren't hot-reloaded. Switch models anytime with `/models` in the
+TUI.
 
 ### Zed
 
@@ -169,7 +185,8 @@ Add to `settings.json`:
           {
             "name": "qwen3.6-mtp",
             "display_name": "Local Qwen3.6-MTP",
-            "max_tokens": 32768,
+            "max_tokens": 131072,
+            "max_output_tokens": 8192,
             "capabilities": {
               "tools": true,
               "images": false,
@@ -182,6 +199,11 @@ Add to `settings.json`:
   }
 }
 ```
+
+Note Zed's `max_tokens` means something different from opencode/Copilot's
+input-only fields above — here it's the model's **total** context window, so
+it's set to the full 131072, with `max_output_tokens` (8192) as a separate
+additional cap on generation length, not subtracted from it.
 
 Zed reads the API key from an **environment variable**, not the settings
 file — derived from the provider key as `<PROVIDER_ID>_API_KEY` uppercased
@@ -199,8 +221,9 @@ Settings gear → **API Provider: "OpenAI Compatible"**:
 - **Base URL**: `http://localhost:11435/v1`
 - **API Key**: any placeholder, e.g. `not-needed`
 - **Model ID**: `qwen3.6-mtp`
-- Set Context Window / Max Output Tokens manually if Cline doesn't pick them
-  up correctly from `/v1/models`.
+- **Context Window Size**: `131072`, **Max Output Tokens**: `8192` — set these
+  manually, Cline doesn't reliably pick them up from `/v1/models` for local
+  servers.
 
 Known llama.cpp-side gotchas seen in the wild (not confirmed on this specific
 build, see "verified working" note above, but worth knowing about if you
@@ -221,8 +244,11 @@ VS Code 1.122):
 5. VS Code opens `chatLanguageModels.json` to finish the entry — set:
    - `id`: `qwen3.6-mtp`
    - `url`: `http://localhost:11435/v1/chat/completions`
-   - `toolCalling: true`, `maxInputTokens`/`maxOutputTokens` matching your
-     `ctxSize` (131072 / a few thousand)
+   - `toolCalling: true`
+   - `maxInputTokens: 122880`, `maxOutputTokens: 8192` — VS Code's docs are
+     explicit that these two **must sum to no more than the model's actual
+     context window** (131072 here); setting them wrong misreports capacity
+     to VS Code and breaks its context-usage display.
 6. Select it from the Chat model picker.
 
 **Caveat**: this only affects Copilot **Chat**. Inline ghost-text code
@@ -244,7 +270,10 @@ llama-server's OpenAI API on the other (e.g. LiteLLM configured as a proxy),
 then point `ANTHROPIC_BASE_URL` at that proxy instead of at llama-server
 directly. This is out of scope for this repo — flagging it clearly so you
 don't spend time looking for a `--openai-compatible` switch in Claude Code
-that doesn't exist.
+that doesn't exist. If you do set up a proxy like LiteLLM, the input/output
+token split (122880/8192, see above) belongs in *that proxy's* model
+definition, not in Claude Code — Claude Code itself has no concept of a
+custom backend's context window since it isn't aware it's talking to one.
 
 ---
 
