@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<title>Llama Stroller</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header>
+    <h1>🦙 Llama Stroller</h1>
+    <span id="status-badge" class="badge stopped">STOPPED</span>
+  </header>
+
+  <section class="card">
+    <div class="row">
+      <label for="profile-select">Profile</label>
+      <select id="profile-select"></select>
+      <button id="btn-start">Start</button>
+      <button id="btn-stop" class="danger">Stop</button>
+      <button id="btn-restart">Restart</button>
+      <button id="btn-open">Open WebUI</button>
+    </div>
+    <div id="status-detail" class="detail"></div>
+  </section>
+
+  <section class="card">
+    <h2>GPU</h2>
+    <div id="gpu-list"></div>
+  </section>
+
+  <section class="card">
+    <h2>Log <small>(auto-refresh)</small></h2>
+    <pre id="log-view"></pre>
+  </section>
+
+  <script src="/app.js"></script>
+</body>
+</html>

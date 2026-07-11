@@ -1,0 +1,4 @@
+state.json
+logs/*.log
+.claude/
+node_modules/
