@@ -60,6 +60,30 @@ model — a Laravel movie-streaming site (admin panel + public frontend):
 - `scripts/install.ps1` — adds `cli\` to your PATH and makes the tray icon
   launch automatically at login.
 
+This repo is only the wrapper — the actual llama.cpp build and model files it
+drives live outside it, at whatever `llamaDir`/`modelsDir` point to in
+`config.json` (`C:\llama.cpp` on this machine):
+
+```
+C:\llama.cpp
+├── llama-server.exe          <- the binary this wrapper actually launches
+├── llama-cli.exe, llama-quantize.exe, llama-bench.exe, ...   (other llama.cpp tools, unused by this wrapper)
+├── ggml-*.dll, llama*.dll, cublas64_13.dll, cudart64_13.dll  (CUDA/CPU backend libraries llama-server.exe needs alongside it)
+└── models\
+    ├── Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf              <- "qwen3.6-main" profile
+    ├── qwen36-a3b-claude-coder-q4_K_M.gguf          <- "qwen3.6-coder" profile (broken, see below)
+    └── Qwen3.6-35B-A3B-MTP-GGUF\
+        └── Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf          <- "qwen3.6-mtp" profile (default)
+```
+
+Each profile's `"model"` field in `config.json` is a path relative to
+`modelsDir` — e.g. `qwen3.6-mtp`'s is
+`Qwen3.6-35B-A3B-MTP-GGUF/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf`, which resolves to
+`C:\llama.cpp\models\Qwen3.6-35B-A3B-MTP-GGUF\Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf`.
+This wrapper never touches anything under `C:\llama.cpp` except to spawn
+`llama-server.exe` (cwd set there so it finds its own DLLs) and read `.gguf`
+files — no writes, no updates to the llama.cpp install itself.
+
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
 ```
