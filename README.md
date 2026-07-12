@@ -1,4 +1,4 @@
-# Llama Ctroller
+# Llama Controller
 
 A local control panel for `llama-server.exe` (llama.cpp) so you don't have to
 open a terminal and retype the launch command every time. One always-on

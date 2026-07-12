@@ -19,13 +19,13 @@ if ($userPath -notlike "*$CliDir*") {
 # 2. Create a Startup shortcut that launches the tray icon (and, via the tray
 #    script, the control server) silently at login.
 $startupDir = [Environment]::GetFolderPath("Startup")
-$shortcutPath = Join-Path $startupDir "Llama Ctroller Tray.lnk"
+$shortcutPath = Join-Path $startupDir "Llama Controller Tray.lnk"
 $wshell = New-Object -ComObject WScript.Shell
 $shortcut = $wshell.CreateShortcut($shortcutPath)
 $shortcut.TargetPath = "powershell.exe"
 $shortcut.Arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$RootDir\tray\tray.ps1`""
 $shortcut.WorkingDirectory = $RootDir
-$shortcut.Description = "Llama Ctroller tray icon + control server"
+$shortcut.Description = "Llama Controller tray icon + control server"
 $shortcut.Save()
 Write-Host "Startup shortcut created: $shortcutPath" -ForegroundColor Green
 

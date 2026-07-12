@@ -89,5 +89,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(config.controlPort, config.controlHost, () => {
-  console.log(`llama-ctroller control server on http://${config.controlHost}:${config.controlPort}`);
+  console.log(`llama-controller control server on http://${config.controlHost}:${config.controlPort}`);
 });
