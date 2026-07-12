@@ -6,8 +6,9 @@ background "control server" manages the actual model process; you talk to it
 via a CLI command (`llama ...`), a web dashboard, or a system tray icon.
 
 This copy is tuned specifically for **agentic coding** (opencode, Zed, Cline,
-GitHub Copilot Chat, Claude Code) against a local Qwen3.6-35B-A3B model on
-2x RTX 5060 Ti (16GB each).
+GitHub Copilot Chat, Open WebUI) against a local Qwen3.6-35B-A3B model on
+2x RTX 5060 Ti (16GB each). Claude Code is deliberately not wired up — see
+below.
 
 ## Layout
 
@@ -140,7 +141,7 @@ backends — exactly the two things we spent the most effort getting reliable
 directly against llama-server. Direct connection has zero such risk, so
 **Claude Code is out of scope for this local model** (it can't speak
 llama-server's OpenAI-shaped API without a translation layer of some kind);
-the other four clients all speak OpenAI's format natively and connect
+the other five clients all speak OpenAI's format natively and connect
 straight to llama-server with no compromises.
 
 **Context/output token budget used throughout this section**: our `ctxSize`
@@ -274,6 +275,18 @@ VS Code 1.122):
 completions stay on GitHub's hosted models regardless — there's no way to
 redirect those to a local model.
 
+### Open WebUI
+
+Admin Settings → **Connections** → Add Connection:
+- **API Base URL**: `http://localhost:11435/v1`
+- **Auth Type**: **Bearer** (not Session/OAuth/Entra ID — those forward
+  Open WebUI's own login session/SSO identity to the backend, which
+  llama-server doesn't understand; it only checks a static bearer token)
+- **API Key**: the real key from `secrets\llama-api-key.txt`
+- Click **Verify Connection**, then select `qwen3.6-mtp` from the model list.
+
+Confirmed working end-to-end by the user.
+
 ### Claude Code — deliberately not supported here
 
 Claude Code's `ANTHROPIC_BASE_URL` only accepts backends that speak the
@@ -290,7 +303,7 @@ upstream issues around dropping `reasoning_content` and streamed
 two things this whole setup was tuned to get right (reasoning-budget,
 MTP speculative decoding, verified streaming+tool-calls). Adding a proxy
 layer just for Claude Code would reintroduce risk we've already eliminated
-for the other four clients, for the sake of one. So: **this local model is
+for the other five clients, for the sake of one. So: **this local model is
 not wired up for Claude Code**, by choice, not by ignorance of the option.
 If that trade-off ever changes, the LiteLLM `config.yaml` needed is already
 known (custom `model_list` entry, explicit `model_info` context/output
