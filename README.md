@@ -91,6 +91,7 @@ silent, intermittent failure for any agentic client with a modest
 | `--spec-type draft-mtp --spec-draft-n-max 2` (mtp profile only) | Activates the model's built-in MTP draft head — this is the official flag from the model card, without which the extra MTP tensors just sit unused. Confirmed working (~90% draft acceptance, ~74 tok/s vs ~60-66 tok/s baseline). Requires `--parallel 1` (`-np 1`), already set — the model card notes MTP does not support `-np > 1`. |
 | `--temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0` | The model card gives **different** recommended sampling for "thinking mode - coding" (temp 0.6) vs "thinking mode - general" (temp 1.0, the embedded default). Since this box is used for coding, switched to the coding-specific recommendation. This is also what fixed the reasoning-length variance above — lower temperature made reaching the tool call far more consistent. |
 | `--alias <profile-name>` | Without it, the model's `id` in `/v1/models` is the full Windows file path (`C:\llama.cpp\models\...gguf`), which is awkward/fragile to put in client configs. Now each profile reports a clean id: `qwen3.6-mtp`, `qwen3.6-main`, `qwen3.6-coder`. |
+| `--api-key-file secrets\llama-api-key.txt` | Required auth for every client, generated once with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. The file lives outside `config.json`/git (see `.gitignore`) — the flag only points at a path, never the secret itself, so the repo stays safe to push. Verified: no/wrong key -> `HTTP 401`, correct key -> `HTTP 200`. |
 
 `qwen3.6-coder` (`qwen36-a3b-claude-coder-q4_K_M.gguf`) is marked `"broken": true`
 in `config.json` — it fails to load on the installed llama-server build with
@@ -119,11 +120,28 @@ re-check.
 
 Base URL for all of these: **`http://localhost:11435/v1`** (or
 `http://<this-pc's-LAN-IP>:11435/v1` from another device — the server is
-bound to `0.0.0.0`, no auth). Model id: **`qwen3.6-mtp`** (or `qwen3.6-main`
-if you started that profile instead — check with `llama status`). None of
-these clients need a *real* API key since llama-server has none configured,
-but most won't accept a blank field — put any placeholder string like
-`not-needed`.
+bound to `0.0.0.0`). Model id: **`qwen3.6-mtp`** (or `qwen3.6-main` if you
+started that profile instead — check with `llama status`).
+
+**API key is required** — llama-server is started with
+`--api-key-file secrets\llama-api-key.txt` (generated once, gitignored, never
+committed). Read the key with `type secrets\llama-api-key.txt` (cmd) or
+`Get-Content secrets\llama-api-key.txt` (PowerShell) and paste it into each
+client's API Key field below instead of a placeholder. Verified directly:
+requests with no key or the wrong key get `HTTP 401`; only the real key gets
+`HTTP 200`.
+
+We deliberately chose **no proxy in front of llama-server** — connect every
+client straight to `:11435`. A translation proxy (LiteLLM etc.) was
+considered for gateway/external-access purposes and specifically to let
+Claude Code talk to this model, but LiteLLM has open issues around dropping
+`reasoning_content`/streamed `tool_calls` for custom OpenAI-compatible
+backends — exactly the two things we spent the most effort getting reliable
+directly against llama-server. Direct connection has zero such risk, so
+**Claude Code is out of scope for this local model** (it can't speak
+llama-server's OpenAI-shaped API without a translation layer of some kind);
+the other four clients all speak OpenAI's format natively and connect
+straight to llama-server with no compromises.
 
 **Context/output token budget used throughout this section**: our `ctxSize`
 is 131072. Several clients ask you to declare an input-token limit and an
@@ -151,7 +169,7 @@ under the hood:
       "name": "llama.cpp Local",
       "options": {
         "baseURL": "http://localhost:11435/v1",
-        "apiKey": "not-needed"
+        "apiKey": "<paste key from secrets\\llama-api-key.txt>"
       },
       "models": {
         "qwen3.6-mtp": {
@@ -207,7 +225,8 @@ additional cap on generation length, not subtracted from it.
 
 Zed reads the API key from an **environment variable**, not the settings
 file — derived from the provider key as `<PROVIDER_ID>_API_KEY` uppercased
-(here: `LLAMA_CPP_API_KEY`). Set it to any placeholder before launching Zed.
+(here: `LLAMA_CPP_API_KEY`). Set it to the real key from
+`secrets\llama-api-key.txt` before launching Zed.
 Then pick the model from the Agent Panel's model picker.
 
 Known gotcha: some users report Zed hangs/"loading forever" after
@@ -219,7 +238,7 @@ the UI "Add Provider" modal instead and restart Zed
 
 Settings gear → **API Provider: "OpenAI Compatible"**:
 - **Base URL**: `http://localhost:11435/v1`
-- **API Key**: any placeholder, e.g. `not-needed`
+- **API Key**: the real key from `secrets\llama-api-key.txt`
 - **Model ID**: `qwen3.6-mtp`
 - **Context Window Size**: `131072`, **Max Output Tokens**: `8192` — set these
   manually, Cline doesn't reliably pick them up from `/v1/models` for local
@@ -240,7 +259,7 @@ VS Code 1.122):
 1. Command Palette → **"Chat: Manage Language Models"**.
 2. **Add Models** → **Custom Endpoint**.
 3. Name it (e.g. "llama.cpp Local"), API type **Chat Completions**.
-4. Enter a placeholder API key when prompted.
+4. Enter the real key from `secrets\llama-api-key.txt` when prompted.
 5. VS Code opens `chatLanguageModels.json` to finish the entry — set:
    - `id`: `qwen3.6-mtp`
    - `url`: `http://localhost:11435/v1/chat/completions`
@@ -255,36 +274,54 @@ VS Code 1.122):
 completions stay on GitHub's hosted models regardless — there's no way to
 redirect those to a local model.
 
-### Claude Code — needs a proxy, not natively supported
+### Claude Code — deliberately not supported here
 
 Claude Code's `ANTHROPIC_BASE_URL` only accepts backends that speak the
-**Anthropic Messages API format** (or Bedrock/Vertex/Foundry equivalents).
-llama-server speaks the **OpenAI** chat completions format — a different
-shape. Anthropic's own docs are explicit that they "don't support routing
-Claude Code to non-Claude models through any gateway," so this path is a
-**community workaround, not official support**.
+**Anthropic Messages API format**; llama-server speaks **OpenAI**'s format —
+a different shape, so it can't connect directly no matter how it's
+configured. The only way to bridge them is a translation proxy (e.g. LiteLLM,
+which exposes an Anthropic-compatible `/v1/messages` endpoint that translates
+to an OpenAI-compatible backend) sitting in front of llama-server, with
+`ANTHROPIC_BASE_URL` pointed at the proxy instead.
 
-To use this local model with Claude Code you need a small translation proxy
-in between that speaks Anthropic Messages API on one side and calls
-llama-server's OpenAI API on the other (e.g. LiteLLM configured as a proxy),
-then point `ANTHROPIC_BASE_URL` at that proxy instead of at llama-server
-directly. This is out of scope for this repo — flagging it clearly so you
-don't spend time looking for a `--openai-compatible` switch in Claude Code
-that doesn't exist. If you do set up a proxy like LiteLLM, the input/output
-token split (122880/8192, see above) belongs in *that proxy's* model
-definition, not in Claude Code — Claude Code itself has no concept of a
-custom backend's context window since it isn't aware it's talking to one.
+We evaluated this and decided against it **on purpose**: LiteLLM has open
+upstream issues around dropping `reasoning_content` and streamed
+`tool_calls` specifically for custom OpenAI-compatible backends — the exact
+two things this whole setup was tuned to get right (reasoning-budget,
+MTP speculative decoding, verified streaming+tool-calls). Adding a proxy
+layer just for Claude Code would reintroduce risk we've already eliminated
+for the other four clients, for the sake of one. So: **this local model is
+not wired up for Claude Code**, by choice, not by ignorance of the option.
+If that trade-off ever changes, the LiteLLM `config.yaml` needed is already
+known (custom `model_list` entry, explicit `model_info` context/output
+limits, `general_settings.master_key` for auth) — just not deployed.
 
 ---
 
 ## Network exposure
 
-Both the control server and `llama-server.exe` bind to `0.0.0.0` (LAN
-reachable) with **no authentication** — anyone on your network can call the
-model API, and, since the control API has no auth either, can also
-stop/restart/switch models on your machine. Fine on a trusted home LAN;
-don't port-forward these ports (4570, 11435) to the internet without adding
-auth in front.
+`llama-server.exe` (port 11435) now requires the API key in
+`secrets\llama-api-key.txt` — verified: no key or a wrong key gets `HTTP 401`.
+
+The **control server (port 4570) still has no authentication** — anyone who
+can reach it can start/stop/restart/switch models on your machine. Both
+still bind to `0.0.0.0` (LAN reachable) per your setup. Fine on a trusted
+home LAN.
+
+### Exposing this beyond your LAN
+
+Evaluated, not deployed. Two common approaches for reaching this from
+outside your home network:
+- **Tailscale/ZeroTier (recommended)** — private VPN mesh, no port-forwarding,
+  built-in TLS, only reachable from your own enrolled devices. Safest by
+  far since nothing is actually public.
+- **Cloudflare Tunnel** — gives a real public URL, usable from any device
+  without installing a VPN client, but means the endpoint really is public.
+
+Either way, keep the control server (4570) LAN-only/Tailscale-only even if
+you expose the model port (11435) more broadly — its `--api-key-file` auth
+protects the model API, but nothing protects the control server from someone
+who can reach it.
 
 ## Adding/editing profiles
 
