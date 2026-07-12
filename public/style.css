@@ -26,6 +26,8 @@ header {
   margin-bottom: 20px;
 }
 
+.logo { height: 28px; width: auto; }
+
 h1 { font-size: 22px; margin: 0; }
 h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); }
 

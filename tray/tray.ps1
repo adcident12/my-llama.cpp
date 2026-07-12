@@ -24,7 +24,7 @@ if (-not (Test-ControlServer)) { Start-ControlServer | Out-Null }
 
 $icon = New-Object System.Windows.Forms.NotifyIcon
 $icon.Icon = [System.Drawing.SystemIcons]::Asterisk
-$icon.Text = "Llama Stroller - stopped"
+$icon.Text = "Llama Ctroller - stopped"
 $icon.Visible = $true
 
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
@@ -67,24 +67,24 @@ function Refresh-Status {
     $st = Invoke-RestMethod -Uri "$Base/api/status" -TimeoutSec 3
     if ($st.running -and $st.healthy) {
       $icon.Icon = [System.Drawing.SystemIcons]::Application
-      $icon.Text = "Llama Stroller - running ($($st.profile) :$($st.port))"
+      $icon.Text = "Llama Ctroller - running ($($st.profile) :$($st.port))"
       $statusItem.Text = "RUNNING - $($st.profile) pid $($st.pid)"
     } elseif ($st.running -and $st.loading) {
       $icon.Icon = [System.Drawing.SystemIcons]::Information
-      $icon.Text = "Llama Stroller - loading model..."
+      $icon.Text = "Llama Ctroller - loading model..."
       $statusItem.Text = "LOADING - $($st.profile)"
     } elseif ($st.crashed) {
       $icon.Icon = [System.Drawing.SystemIcons]::Error
-      $icon.Text = "Llama Stroller - crashed"
+      $icon.Text = "Llama Ctroller - crashed"
       $statusItem.Text = "CRASHED - $($st.lastProfile)"
     } else {
       $icon.Icon = [System.Drawing.SystemIcons]::Asterisk
-      $icon.Text = "Llama Stroller - stopped"
+      $icon.Text = "Llama Ctroller - stopped"
       $statusItem.Text = "STOPPED"
     }
     $script:lastState = $st
   } catch {
-    $icon.Text = "Llama Stroller - control server unreachable"
+    $icon.Text = "Llama Ctroller - control server unreachable"
   }
 }
 

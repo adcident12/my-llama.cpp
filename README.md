@@ -1,4 +1,4 @@
-# Llama Stroller
+# Llama Ctroller
 
 A local control panel for `llama-server.exe` (llama.cpp) so you don't have to
 open a terminal and retype the launch command every time. One always-on
@@ -9,6 +9,10 @@ This copy is tuned specifically for **agentic coding** (opencode, Zed, Cline,
 GitHub Copilot Chat, Open WebUI) against a local Qwen3.6-35B-A3B model on
 2x RTX 5060 Ti (16GB each). Claude Code is deliberately not wired up — see
 below.
+
+Dashboard icon (`public/icon-dark.svg`) is the official llama.cpp mark from
+[ggml-org/llama.brand](https://github.com/ggml-org/llama.brand), licensed
+CC BY-NC 4.0 — used here under attribution, non-commercial personal project.
 
 ## Layout
 

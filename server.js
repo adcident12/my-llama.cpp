@@ -12,6 +12,7 @@ const MIME = {
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
 };
 
 function sendJson(res, code, obj) {
@@ -88,5 +89,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(config.controlPort, config.controlHost, () => {
-  console.log(`llama-stroller control server on http://${config.controlHost}:${config.controlPort}`);
+  console.log(`llama-ctroller control server on http://${config.controlHost}:${config.controlPort}`);
 });
