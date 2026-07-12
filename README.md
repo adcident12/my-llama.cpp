@@ -14,6 +14,35 @@ Dashboard icon (`public/icon-dark.svg`) is the official llama.cpp mark from
 [ggml-org/llama.brand](https://github.com/ggml-org/llama.brand), licensed
 CC BY-NC 4.0 — used here under attribution, non-commercial personal project.
 
+## In action
+
+Benchmark run through opencode against this exact tuned setup:
+
+<img src="images/summary.png" alt="opencode agentic coding benchmark: 9.9/10 overall, 49.6 tok/s average generate speed, 78.65% MTP draft acceptance, 99.9% cache/LCP similarity, 100% stability" width="600">
+
+**9.9/10 overall** — 49.6 tok/s average generate speed (peak 63.9), 78.65%
+average MTP draft acceptance, 99.9% cache/LCP similarity, **100% stability**
+(zero OOM, zero errors) across a 102,530-token session with no context
+truncation.
+
+A real project built end-to-end through opencode in VS Code against this
+model — a Laravel movie-streaming site (admin panel + public frontend):
+
+<img src="images/vscode+opencode.png" alt="VS Code with opencode driving a coding session against Qwen 3.6 MTP (Local), 103k tokens / 84% context used, $0.00 spent" width="800">
+
+<table>
+<tr>
+<td><img src="images/backend.png" alt="Laravel admin panel: Edit Movie form" width="280"></td>
+<td><img src="images/frontend-1.png" alt="Movie streaming site homepage" width="280"></td>
+<td><img src="images/frontend-2.png" alt="Movie detail page" width="280"></td>
+</tr>
+<tr>
+<td align="center">Admin backend</td>
+<td align="center">Public homepage</td>
+<td align="center">Movie detail page</td>
+</tr>
+</table>
+
 ## Layout
 
 - `config.json` — model profiles (path, port, context size, GPU layers, sampling, etc.)
@@ -80,7 +109,7 @@ file and is not set on that profile.
 
 ## Tuning applied for agentic coding, and why
 
-All three flags below were added to `extraArgs` after finding a real,
+The flags below were added to `extraArgs` after finding a real,
 reproducible problem: at the model's default embedded `temp=1.0`, the same
 tool-calling prompt sent 3x sometimes finished in ~150 tokens of reasoning and
 sometimes blew past 200+ tokens without ever emitting the tool call
@@ -92,7 +121,7 @@ silent, intermittent failure for any agentic client with a modest
 |---|---|
 | `--reasoning-budget 2048` | Hard cap on thinking-token length so a response (and any tool call) is reached well before typical client `max_tokens` budgets. Verified: 4/4 successful tool calls at a realistic 1024-token client budget after this + the temp change below (down from intermittent failures before). |
 | `--no-reasoning-preserve` | Agent sessions run many turns. Without this, every turn re-sends the full `<think>` trace of every prior turn, burning through the 128k context fast. Only the latest turn's reasoning is kept. |
-| `--cache-reuse 256` | Agent clients resend the same long system prompt + tool definitions every turn. This lets llama.cpp reuse a matching KV-cache chunk even when something earlier in the conversation changed, instead of reprocessing the unchanged block from scratch. |
+| ~~`--cache-reuse 256`~~ | **Tried, doesn't apply here — removed.** Intended to let llama.cpp reuse a matching KV-cache chunk when something earlier in the conversation changed. Every single startup log showed `W cache_reuse is not supported by this context, it will be disabled` — this model's hybrid Gated DeltaNet/SSM layers don't have a shiftable KV cache the way pure-attention models do, so the flag was silently a no-op the entire time it was set. Caught by actually reading the full startup log (including warnings, not just errors) instead of only checking for a clean listen. |
 | `--spec-type draft-mtp --spec-draft-n-max 2` (mtp profile only) | Activates the model's built-in MTP draft head — this is the official flag from the model card, without which the extra MTP tensors just sit unused. Confirmed working (~90% draft acceptance, ~74 tok/s vs ~60-66 tok/s baseline). Requires `--parallel 1` (`-np 1`), already set — the model card notes MTP does not support `-np > 1`. |
 | `--temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0` | The model card gives **different** recommended sampling for "thinking mode - coding" (temp 0.6) vs "thinking mode - general" (temp 1.0, the embedded default). Since this box is used for coding, switched to the coding-specific recommendation. This is also what fixed the reasoning-length variance above — lower temperature made reaching the tool call far more consistent. |
 | `--alias <profile-name>` | Without it, the model's `id` in `/v1/models` is the full Windows file path (`C:\llama.cpp\models\...gguf`), which is awkward/fragile to put in client configs. Now each profile reports a clean id: `qwen3.6-mtp`, `qwen3.6-main`, `qwen3.6-coder`. |

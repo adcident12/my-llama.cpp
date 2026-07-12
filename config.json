@@ -15,7 +15,7 @@
       "flashAttn": "on",
       "cacheTypeK": "q8_0",
       "cacheTypeV": "q8_0",
-      "extraArgs": "--alias qwen3.6-mtp --tensor-split 1,1 --cache-reuse 256 --reasoning-budget 2048 --no-reasoning-preserve --spec-type draft-mtp --spec-draft-n-max 2 --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt"
+      "extraArgs": "--alias qwen3.6-mtp --tensor-split 1,1 --reasoning-budget 2048 --no-reasoning-preserve --spec-type draft-mtp --spec-draft-n-max 2 --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt"
     },
     "qwen3.6-main": {
       "model": "Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf",
@@ -27,7 +27,7 @@
       "flashAttn": "on",
       "cacheTypeK": "q8_0",
       "cacheTypeV": "q8_0",
-      "extraArgs": "--alias qwen3.6-main --tensor-split 1,1 --cache-reuse 256 --reasoning-budget 2048 --no-reasoning-preserve --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt"
+      "extraArgs": "--alias qwen3.6-main --tensor-split 1,1 --reasoning-budget 2048 --no-reasoning-preserve --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt"
     },
     "qwen3.6-coder": {
       "model": "qwen36-a3b-claude-coder-q4_K_M.gguf",
@@ -39,7 +39,7 @@
       "flashAttn": "on",
       "cacheTypeK": "q8_0",
       "cacheTypeV": "q8_0",
-      "extraArgs": "--alias qwen3.6-coder --tensor-split 1,1 --cache-reuse 256 --reasoning-budget 2048 --no-reasoning-preserve --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt",
+      "extraArgs": "--alias qwen3.6-coder --tensor-split 1,1 --reasoning-budget 2048 --no-reasoning-preserve --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt",
       "broken": true,
       "note": "gguf incompatible with installed llama-server build 9949: 'qwen35moe.rope.dimension_sections has wrong array length; expected 4, got 3'. Needs re-quantizing with a matching llama.cpp version, or running an older/matching llama-server build."
     }
