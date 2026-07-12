@@ -16,6 +16,10 @@ CC BY-NC 4.0 — used here under attribution, non-commercial personal project.
 
 ## In action
 
+The dashboard, mid-session:
+
+<img src="images/llama-controller.png" alt="Llama Controller dashboard showing the qwen3.6-mtp profile running, GPU memory usage on both cards, and a live startup log" width="800">
+
 Benchmark run through opencode against this exact tuned setup:
 
 <img src="images/summary.png" alt="opencode agentic coding benchmark: 9.9/10 overall, 49.6 tok/s average generate speed, 78.65% MTP draft acceptance, 99.9% cache/LCP similarity, 100% stability" width="600">
