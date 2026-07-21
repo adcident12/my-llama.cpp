@@ -71,6 +71,7 @@ C:\llama.cpp
 ├── ggml-*.dll, llama*.dll, cublas64_13.dll, cudart64_13.dll  (CUDA/CPU backend libraries llama-server.exe needs alongside it)
 └── models\
     ├── Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf              <- "qwen3.6-main" profile
+    ├── mmproj-Qwen3.6-35B-A3B-F16.gguf              <- vision projector for "qwen3.6-main" only
     ├── qwen36-a3b-claude-coder-q4_K_M.gguf          <- "qwen3.6-coder" profile (broken, see below)
     └── Qwen3.6-35B-A3B-MTP-GGUF\
         └── Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf          <- "qwen3.6-mtp" profile (default)
@@ -134,6 +135,20 @@ Read directly from the GGUF header and cross-checked against the
 The plain `qwen3.6-main` profile is the same base model **without** the MTP
 head (733 tensors) — `--spec-type draft-mtp` only works on the `-MTP-GGUF`
 file and is not set on that profile.
+
+**`qwen3.6-main` has vision, `qwen3.6-mtp` deliberately doesn't.** Added
+`--mmproj models\mmproj-Qwen3.6-35B-A3B-F16.gguf` (downloaded separately from
+[unsloth/Qwen3.6-35B-A3B-GGUF](https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF),
+~858 MiB — llama.cpp vision support needs this separate CLIP-projector file
+alongside the main text model) to the `qwen3.6-main` profile only. Verified
+end-to-end: generated a test image (blue circle on white), sent it through
+`/v1/chat/completions` as an `image_url` data URI, got back "A blue circle."
+— `/props` now reports `modalities: {vision: true, video: true}` for this
+profile. VRAM cost was small (~26GB total across both cards afterward, still
+comfortable headroom). **Not added to `qwen3.6-mtp`** because the model card
+explicitly states MTP speculative decoding and `--mmproj` aren't supported
+together — pick vision (`qwen3.6-main`) or the MTP speedup (`qwen3.6-mtp`),
+not both, per profile.
 
 ## Tuning applied for agentic coding, and why
 
@@ -344,7 +359,12 @@ Admin Settings → **Connections** → Add Connection:
   Open WebUI's own login session/SSO identity to the backend, which
   llama-server doesn't understand; it only checks a static bearer token)
 - **API Key**: the real key from `secrets\llama-api-key.txt`
-- Click **Verify Connection**, then select `qwen3.6-mtp` from the model list.
+- Click **Verify Connection**, then select a model from the list.
+
+**For image uploads**: switch to the **`qwen3.6-main`** profile
+(`llama restart qwen3.6-main`) — that's the one with the vision projector
+loaded, not `qwen3.6-mtp`. Upload an image in the chat and ask about it like
+normal; verified working (see "The model" section above).
 
 Confirmed working end-to-end by the user.
 
