@@ -85,6 +85,40 @@ This wrapper never touches anything under `C:\llama.cpp` except to spawn
 `llama-server.exe` (cwd set there so it finds its own DLLs) and read `.gguf`
 files — no writes, no updates to the llama.cpp install itself.
 
+### Upgrading llama.cpp itself
+
+Currently on **build 10155** (`1cbfd1988`), upgraded from b9949. There's no
+auto-updater — llama.cpp ships as a plain zip of binaries. The process,
+in case it needs repeating:
+
+1. `llama stop` first — the exe/dlls are locked while running.
+2. Find the latest release with populated assets at
+   [github.com/ggml-org/llama.cpp/releases](https://github.com/ggml-org/llama.cpp/releases)
+   — the very newest tag sometimes has 0 assets for a while if its build/upload
+   is still in progress; use the one just before it if so.
+3. Download **both** `llama-b<N>-bin-win-cuda-<X.X>-x64.zip` (the binaries)
+   and `cudart-llama-bin-win-cuda-<X.X>-x64.zip` (CUDA runtime DLLs) matching
+   the CUDA version your driver reports (`nvidia-smi` header, "CUDA Version") —
+   13.3 here.
+4. Back up first: move the current `*.exe`/`*.dll` files (not `models\`) into
+   a dated subfolder like `_backup-b<old>\`, so there's an instant rollback if
+   the new build regresses something.
+5. Extract both zips into `C:\llama.cpp` (they unpack flat into the root, no
+   nested folder).
+6. Re-verify everything this README claims still holds — flags can be
+   renamed/removed across versions. At minimum: `llama-server --help` for
+   every custom flag in `config.json`'s `extraArgs`, then actually load each
+   profile and re-test tool-calling + streaming + (for `qwen3.6-main`) vision,
+   not just that the process starts. Don't trust a version bump silently.
+
+Last upgrade (b9949 → b10155): all custom flags (`--spec-type draft-mtp`,
+`--reasoning-budget`, `--no-reasoning-preserve`, `--api-key-file`, `--mmproj`,
+`--alias`) still present and working, tool-calling + streaming + vision all
+re-verified end-to-end, MTP draft acceptance still ~85-90%. `qwen3.6-coder`
+re-tested directly against the new build and still fails with the identical
+`rope.dimension_sections` error — confirms that's a permanent property of
+the file needing re-conversion, not a version window that happened to close.
+
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
 ```
@@ -185,7 +219,7 @@ Some llama.cpp versions have had bugs combining `stream: true` with `tools`
 (malformed `tool_calls[].function.arguments`, or outright errors — see
 [llama.cpp #20198](https://github.com/ggml-org/llama.cpp/issues/20198)). This
 matters because several clients below stream by default. **Verified directly
-against this build (b9949)**: streamed tool calls come back as correct
+against this build (b10155)**: streamed tool calls come back as correct
 incremental JSON string deltas that concatenate into valid arguments, with a
 correct final `finish_reason: "tool_calls"`. If you update llama.cpp later and
 a client's tool use starts behaving oddly, this is the first thing to
