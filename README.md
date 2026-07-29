@@ -76,7 +76,8 @@ C:\llama.cpp
     ├── Qwen3.6-35B-A3B-MTP-GGUF\
     │   └── Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf          <- "qwen3.6-mtp" profile (default)
     └── Qwen3.6-27B-Fable-Fusion-711-MTP-GGUF\
-        └── Qwen3.6-27B-Fable-Fus-711-MTP-Q6_K.gguf  <- "fable-fusion-27b" profile (tested, not default - see below)
+        ├── Qwen3.6-27B-Fable-Fus-711-MTP-Q6_K.gguf  <- "fable-fusion-27b" profile (tested, not default - see below)
+        └── mmproj-Fable-Fusion-711-F16.gguf         <- vision projector for "fable-fusion-27b"
 ```
 
 Each profile's `"model"` field in `config.json` is a path relative to
@@ -243,13 +244,33 @@ What testing actually found:
   pipeline parallelism, but left under 800MB free on one card) — not a safe
   setting. Pinned `ctxSize: 65536` in `config.json` rather than trusting
   either extreme.
-- No vision on this profile (mmproj not wired up for it).
-
 **Verdict**: works, but roughly 3x slower for agentic coding with a smaller
 safe context ceiling than the default setup, in exchange for uncensored
-output the coding use case doesn't need. Left configured as a profile in
-case it's useful for something other than coding, but `qwen3.6-mtp` stays
-the default.
+output the coding use case doesn't need. Left configured as a profile,
+`qwen3.6-mtp` stays default for coding.
+
+**Now actually in use for Open WebUI chat + custom Tools** (data
+fetch/analysis, not coding — the speed difference matters far less for
+occasional Q&A than for rapid-fire agentic loops). Before trusting it for
+that: stress-tested tool-calling at this model's default `temp=1.0` with a
+tight 400-token budget, 5/5 succeeded — unlike `qwen3.6-mtp`, which had real
+failures at temp=1.0 before being lowered to 0.6, this model didn't need a
+temperature override. Added `--reasoning-budget`/`--no-reasoning-preserve`
+anyway as cheap insurance for long chat sessions.
+
+**Vision added afterward, with a genuine surprise**: the original Unsloth
+`qwen3.6-mtp` model's card explicitly says MTP speculative decoding and
+`--mmproj` aren't supported together (why `qwen3.6-main`/`qwen3.6-mtp` are
+split into separate profiles above). This DavidAU merge has no such
+restriction — loaded `--spec-type draft-mtp` and `--mmproj` at the same
+time with zero conflict. Verified: the test image was correctly described
+as "a blue circle" **and** MTP draft acceptance stayed ~82% in the same
+request. VRAM got tighter (~28.5GB/32GB used, ~3.8GB free) but stable.
+
+Only downside of switching to this profile: **this hardware runs one model
+at a time**. While `fable-fusion-27b` is loaded for Open WebUI, it isn't
+available to opencode/Zed/Cline/Copilot — switch back with
+`llama restart qwen3.6-mtp` before coding again.
 
 ## Streaming + tool calls: verified working on this build
 
