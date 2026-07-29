@@ -73,8 +73,10 @@ C:\llama.cpp
     ├── Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf              <- "qwen3.6-main" profile
     ├── mmproj-Qwen3.6-35B-A3B-F16.gguf              <- vision projector for "qwen3.6-main" only
     ├── qwen36-a3b-claude-coder-q4_K_M.gguf          <- "qwen3.6-coder" profile (broken, see below)
-    └── Qwen3.6-35B-A3B-MTP-GGUF\
-        └── Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf          <- "qwen3.6-mtp" profile (default)
+    ├── Qwen3.6-35B-A3B-MTP-GGUF\
+    │   └── Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf          <- "qwen3.6-mtp" profile (default)
+    └── Qwen3.6-27B-Fable-Fusion-711-MTP-GGUF\
+        └── Qwen3.6-27B-Fable-Fus-711-MTP-Q6_K.gguf  <- "fable-fusion-27b" profile (tested, not default - see below)
 ```
 
 Each profile's `"model"` field in `config.json` is a path relative to
@@ -212,6 +214,42 @@ has wrong array length; expected 4, got 3`. That file was converted with an
 expects (4-section). Fix: re-convert it from the original checkpoint with the
 current `convert_hf_to_gguf.py` — an older llama-server build won't help since
 the file itself needs re-converting, not the runtime.
+
+## Alternative model tried: Fable-Fusion-711 (tested, not adopted for coding)
+
+Tried [DavidAU/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-...-MTP-GGUF](https://huggingface.co/DavidAU/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-NM-DAU-NEO-MAX-MTP-GGUF)
+(Q6_K, `fable-fusion-27b` profile) out of curiosity. Not an official Qwen
+release — a community merge/fine-tune stack plus an abliteration pass
+("Heretic") that strips refusal behavior (99/100 refusals -> 4/100 per the
+model card's own testing). Benchmark claims on the card (ARC-C/ARC-E/BoolQ,
+self-reported, not independently verified) are general-reasoning scores with
+**no coding-specific benchmark at all**, so they say nothing about fitness
+for this setup's actual use case.
+
+What testing actually found:
+- **Base architecture is dense 27B**, not the sparse MoE the other profiles
+  use — every token exercises all 27B params, no ~3B-active shortcut.
+- Tool-calling works correctly (stream + non-stream, 3/3 runs), MTP draft
+  acceptance is decent (~78-86%).
+- **But raw speed is only ~26 tok/s vs ~74 tok/s** on `qwen3.6-mtp` — being
+  dense costs far more per token than being sparse, even at a smaller total
+  parameter count. This is the actual reason it's not the better choice,
+  not the "uncensored" framing.
+- `--fit` auto-picked only 8192 ctx (too conservative to be useful) because
+  standard dense attention has real per-token KV cost, unlike the hybrid
+  DeltaNet/SSM architecture the other models use. Tested by hand instead:
+  65536 fits with solid headroom (~4.8GB free); 98304 triggered an actual
+  CUDA OOM once during buffer allocation (auto-recovered by retrying without
+  pipeline parallelism, but left under 800MB free on one card) — not a safe
+  setting. Pinned `ctxSize: 65536` in `config.json` rather than trusting
+  either extreme.
+- No vision on this profile (mmproj not wired up for it).
+
+**Verdict**: works, but roughly 3x slower for agentic coding with a smaller
+safe context ceiling than the default setup, in exchange for uncensored
+output the coding use case doesn't need. Left configured as a profile in
+case it's useful for something other than coding, but `qwen3.6-mtp` stays
+the default.
 
 ## Streaming + tool calls: verified working on this build
 

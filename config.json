@@ -42,6 +42,19 @@
       "extraArgs": "--alias qwen3.6-coder --tensor-split 1,1 --reasoning-budget 2048 --no-reasoning-preserve --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt",
       "broken": true,
       "note": "gguf incompatible with installed llama-server build 10155 (re-checked after upgrading from b9949 - same error persists, confirming this needs the file re-converted, not a newer/older runtime): 'qwen35moe.rope.dimension_sections has wrong array length; expected 4, got 3'. Needs re-quantizing with a matching llama.cpp version."
+    },
+    "fable-fusion-27b": {
+      "model": "Qwen3.6-27B-Fable-Fusion-711-MTP-GGUF/Qwen3.6-27B-Fable-Fus-711-MTP-Q6_K.gguf",
+      "host": "0.0.0.0",
+      "port": 11435,
+      "ctxSize": 65536,
+      "gpuLayers": 999,
+      "parallel": 1,
+      "flashAttn": "on",
+      "cacheTypeK": "q8_0",
+      "cacheTypeV": "q8_0",
+      "extraArgs": "--alias fable-fusion-27b --tensor-split 1,1 --spec-type draft-mtp --spec-draft-n-max 2 --temp 1.0 --top-p 0.95 --top-k 20 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt",
+      "note": "Community merge (DavidAU Fable-Fusion-711, dense 27B, uncensored/abliterated), not an official Qwen release. Tested: tool-calling works (stream+non-stream), MTP draft acceptance ~78-86%, but raw speed is only ~26 tok/s vs ~74 tok/s on qwen3.6-mtp (dense 27B costs far more per token than the sparse 35B-A3B MoE despite fewer total params). Context ceiling tested by hand: 65536 fits safely (~4.8GB headroom), 98304 triggered an internal CUDA OOM once (auto-recovered by retrying without pipeline parallelism, but left under 800MB free on one card) - not safe for real use, pinned to 65536 instead of trusting --fit's over-conservative 8192 default. No vision (mmproj not added for this profile)."
     }
   }
 }
