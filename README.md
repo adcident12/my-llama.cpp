@@ -15,8 +15,11 @@ Dashboard icon (`public/icon-dark.svg`) is the official llama.cpp mark from
 CC BY-NC 4.0 — used here under attribution, non-commercial personal project.
 
 📊 [`docs/benchmark-report.html`](docs/benchmark-report.html) — a formatted
-write-up of the 6-model MoE-vs-dense comparison below (open it in a browser),
-built for sharing outside this repo.
+write-up of the 6-model MoE-vs-dense comparison below (open it in a browser
+for the live version — GitHub strips the `<style>` that makes it look like
+this; the image below is a screenshot for that reason):
+
+<a href="docs/benchmark-report.html"><img src="images/benchmark-report.png" alt="Benchmark report: six local LLM profiles compared on speed, tool-calling reliability, and vision support" width="700"></a>
 
 ## In action
 
