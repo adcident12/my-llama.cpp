@@ -81,6 +81,32 @@
       "cacheTypeV": "q8_0",
       "extraArgs": "--alias muse-glimmer-30b-meta --tensor-split 1,1 --spec-type draft-dflash --spec-draft-model C:\\llama.cpp\\models\\Muse-Glimmer-30B-GGUF\\dflash-kquant.gguf --mmproj C:\\llama.cpp\\models\\Muse-Glimmer-30B-GGUF\\mmproj-kquant.gguf --temp 1.0 --top-p 0.95 --top-k 64 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt",
       "note": "Meta's OWN official GGUF export (huggingface.co/meta-models/Muse-Glimmer-30B-GGUF) - this is the literal file the model card's 0.2%-degradation/32GB-VRAM 'K-Quant-Dynamic' claim refers to, confirmed by filename (muse-glimmer-30B-kquant-dynamic.gguf) and exact byte-size match against the repo's own listing. Different quantization pipeline from Unsloth's UD-Q4_K_XL above (19.7GB vs ~14.8GB for the same nominal '4-bit' tier) - reuses the same dflash-kquant.gguf/mmproj-kquant.gguf companion files since those are byte-identical between both repos (verified via content-length before downloading only the ~18.3GB text model). TESTED HEAD-TO-HEAD vs the Unsloth UD-Q4_K_XL profile above: tool-calling reliable (8/8 across two batches incl. tight-budget stress test, identical result), vision works identically ('a blue circle'), speed/draft-acceptance statistically indistinguishable (27.7-34.7 tok/s, ~54-67% acceptance vs Unsloth's 27.7-34.3 tok/s, ~54-69%) - the larger, more-precise Meta weights did NOT measurably change speed or reliability on this hardware. ctxSize 131072 hand-tested and fits, but with less headroom than Unsloth's variant (~6.8GB free vs ~10.3GB) since the weights alone are ~5GB bigger. Net: no observed practical difference between the two quantizations in this setup's actual usage (tool-calling, vision, speed) despite Meta's official 0.2% vs unknown/unverified degradation numbers - the quality gap this claims to close may only show up in evals this setup can't run, not in casual use."
+    },
+    "qwen3.6-27b": {
+      "model": "Qwen3.6-27B-GGUF/Qwen3.6-27B-UD-Q4_K_XL.gguf",
+      "host": "0.0.0.0",
+      "port": 11435,
+      "ctxSize": 131072,
+      "gpuLayers": 999,
+      "parallel": 1,
+      "flashAttn": "on",
+      "cacheTypeK": "q8_0",
+      "cacheTypeV": "q8_0",
+      "extraArgs": "--alias qwen3.6-27b --tensor-split 1,1 --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt",
+      "note": "Official Qwen (Alibaba) dense 27B, plain (no MTP) - the actual model the Muse Glimmer card's 'Qwen3.6-27B Thinking Mode' benchmark comparisons refer to, which this setup never directly tested until now (Fable-Fusion is a DavidAU uncensored merge of the same base, not the pristine original). Same sampling as qwen3.6-mtp/qwen3.6-main for direct comparability."
+    },
+    "qwen3.6-27b-mtp": {
+      "model": "Qwen3.6-27B-MTP-GGUF/Qwen3.6-27B-UD-Q4_K_XL.gguf",
+      "host": "0.0.0.0",
+      "port": 11435,
+      "ctxSize": 131072,
+      "gpuLayers": 999,
+      "parallel": 1,
+      "flashAttn": "on",
+      "cacheTypeK": "q8_0",
+      "cacheTypeV": "q8_0",
+      "extraArgs": "--alias qwen3.6-27b-mtp --tensor-split 1,1 --spec-type draft-mtp --spec-draft-n-max 2 --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt",
+      "note": "Official Qwen dense 27B with MTP - lets us isolate MTP's speedup contribution on a DENSE architecture (vs the sparse MoE qwen3.6-mtp) and compare against the dense+MTP Fable-Fusion merge's numbers (~26-34 tok/s, ~78-86% draft acceptance) using the pristine, uncensored-merge-free original this time."
     }
   }
 }

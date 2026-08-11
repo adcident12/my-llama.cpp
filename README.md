@@ -82,8 +82,12 @@ C:\llama.cpp
     │   ├── Muse-Glimmer-30B-UD-Q4_K_XL.gguf         <- "muse-glimmer-30b" profile - Unsloth's own GGUF conversion (~14.8GB)
     │   ├── dflash-kquant.gguf                       <- DFlash drafter - shared by both muse-glimmer-30b profiles
     │   └── mmproj-kquant.gguf                       <- vision projector - shared by both muse-glimmer-30b profiles
-    └── Muse-Glimmer-30B-Meta-GGUF\
-        └── muse-glimmer-30B-kquant-dynamic.gguf     <- "muse-glimmer-30b-meta" profile - Meta's own official export (19.7GB)
+    ├── Muse-Glimmer-30B-Meta-GGUF\
+    │   └── muse-glimmer-30B-kquant-dynamic.gguf     <- "muse-glimmer-30b-meta" profile - Meta's own official export (19.7GB)
+    ├── Qwen3.6-27B-GGUF\
+    │   └── Qwen3.6-27B-UD-Q4_K_XL.gguf              <- "qwen3.6-27b" profile - plain dense, no MTP
+    └── Qwen3.6-27B-MTP-GGUF\
+        └── Qwen3.6-27B-UD-Q4_K_XL.gguf              <- "qwen3.6-27b-mtp" profile - plain dense + MTP
 ```
 
 Each profile's `"model"` field in `config.json` is a path relative to
@@ -381,6 +385,50 @@ represents didn't surface in tool-calling/vision/speed testing; it would
 need a real statistical benchmark (MMLU-style, many samples) to detect, not
 casual manual comparison — both profiles are kept, `qwen3.6-mtp` still
 stays default for coding either way.
+
+### Two more added for a clean isolation test: plain Qwen3.6-27B, with and without MTP
+
+The Muse Glimmer card's benchmark table compares against "Qwen3.6-27B
+Thinking Mode" — a model this setup never actually had (Fable-Fusion is a
+27B-based uncensored *merge*, not the pristine original). Added the real
+thing from Unsloth: [Qwen3.6-27B-GGUF](https://huggingface.co/unsloth/Qwen3.6-27B-GGUF)
+(`qwen3.6-27b`, no MTP) and [Qwen3.6-27B-MTP-GGUF](https://huggingface.co/unsloth/Qwen3.6-27B-MTP-GGUF)
+(`qwen3.6-27b-mtp`) — same `UD-Q4_K_XL` quant, same sampling settings as
+the other qwen3.6-* profiles for direct comparability. This also gives a
+clean **A/B isolation of what MTP alone is worth**, same base model, only
+difference is the MTP head.
+
+### Full comparison (all 6 profiles, tested the same way, same day)
+
+| | qwen3.6-mtp | qwen3.6-main | qwen3.6-27b | qwen3.6-27b-mtp | muse-glimmer (Unsloth) | muse-glimmer (Meta) |
+|---|---|---|---|---|---|---|
+| Params | 35B MoE (~3B active) | 35B MoE (~3B active) | 27B dense | 27B dense | 29.6B dense | 29.6B dense |
+| Speculative decoding | MTP | none | none | MTP | DFlash | DFlash |
+| Speed (1024-budget) | 66.5-81.4 tok/s | 70.4-74.1 tok/s | **20.2-20.4 tok/s** | 37.1-38.1 tok/s | 27.7-34.3 tok/s | 27.7-34.7 tok/s |
+| Draft acceptance | 76-88% | n/a | n/a | **87-92%** | ~54-69% | ~54-67% |
+| Tool-calling (1024 budget) | 3/3 | 3/3 | 5/5 | 4/5 | 3/3 | 5/5 |
+| Tool-calling (tight 400 budget) | 3/5 | 4/5 | **5/5** | 4/5 | 5/5 | 5/5 |
+| Vision | no | yes | not tested | not tested | yes | yes |
+| VRAM headroom @131072 ctx | ~5.5GB | ~6.2GB | ~8.2GB | ~6.4GB | ~10.3GB | ~6.8GB |
+
+**What this isolation test actually shows:**
+- **MoE vs dense is the dominant speed factor, not MTP.** `qwen3.6-main`
+  (MoE, zero acceleration) at 70-74 tok/s is already faster than
+  `qwen3.6-27b-mtp` (dense, *with* MTP acceleration) at 37-38 tok/s. Being
+  sparse matters more than any speculative-decoding trick on top of dense.
+- **MTP's value depends heavily on the baseline it's accelerating.** On the
+  already-fast MoE model, MTP added almost nothing measurable (66-81 vs
+  70-74 tok/s — within noise). On the slow dense model, MTP nearly
+  **doubled** throughput (20.3 -> 37.1-38.1 tok/s, a genuine ~1.85x) with
+  much higher draft acceptance (87-92% vs 76-88% on the MoE model) — dense
+  backbones apparently make for a more predictable MTP draft target.
+- **The plain dense Qwen3.6-27B (no acceleration) was the most reliable at
+  the tight 400-token budget (5/5)**, better than every accelerated
+  profile including its own MTP variant (4/5). Speculative decoding
+  changes generation *speed*, not how many tokens the model decides to
+  spend reasoning before it acts — but this run's numbers suggest it isn't
+  fully neutral to reliability either; sample size here is small (5 runs)
+  and this specific ranking shouldn't be over-read.
 
 ## Streaming + tool calls: verified working on this build
 
