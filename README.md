@@ -14,6 +14,10 @@ Dashboard icon (`public/icon-dark.svg`) is the official llama.cpp mark from
 [ggml-org/llama.brand](https://github.com/ggml-org/llama.brand), licensed
 CC BY-NC 4.0 — used here under attribution, non-commercial personal project.
 
+📊 [`docs/benchmark-report.html`](docs/benchmark-report.html) — a formatted
+write-up of the 6-model MoE-vs-dense comparison below (open it in a browser),
+built for sharing outside this repo.
+
 ## In action
 
 The dashboard, mid-session:
