@@ -406,8 +406,8 @@ difference is the MTP head.
 | Speculative decoding | MTP | none | none | MTP | DFlash | DFlash |
 | Speed (1024-budget) | 66.5-81.4 tok/s | 70.4-74.1 tok/s | **20.2-20.4 tok/s** | 37.1-38.1 tok/s | 27.7-34.3 tok/s | 27.7-34.7 tok/s |
 | Draft acceptance | 76-88% | n/a | n/a | **87-92%** | ~54-69% | ~54-67% |
-| Tool-calling (1024 budget) | 3/3 | 3/3 | 5/5 | 4/5 | 3/3 | 5/5 |
-| Tool-calling (tight 400 budget) | 3/5 | 4/5 | **5/5** | 4/5 | 5/5 | 5/5 |
+| Tool-calling (1024 budget, 3 runs each) | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 |
+| Tool-calling (tight 400 budget, 5 runs each) | 3/5 | 4/5 | **5/5** | 4/5 | 5/5 | 5/5 |
 | Vision | no | yes | yes | yes (+MTP, 81% acceptance, no conflict) | yes | yes |
 | VRAM headroom @131072 ctx | ~5.5GB | ~6.2GB | ~8.2GB | ~6.4GB | ~10.3GB | ~6.8GB |
 
