@@ -75,9 +75,13 @@ C:\llama.cpp
     ├── qwen36-a3b-claude-coder-q4_K_M.gguf          <- "qwen3.6-coder" profile (broken, see below)
     ├── Qwen3.6-35B-A3B-MTP-GGUF\
     │   └── Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf          <- "qwen3.6-mtp" profile (default)
-    └── Qwen3.6-27B-Fable-Fusion-711-MTP-GGUF\
-        ├── Qwen3.6-27B-Fable-Fus-711-MTP-Q6_K.gguf  <- "fable-fusion-27b" profile (tested, not default - see below)
-        └── mmproj-Fable-Fusion-711-F16.gguf         <- vision projector for "fable-fusion-27b"
+    ├── Qwen3.6-27B-Fable-Fusion-711-MTP-GGUF\
+    │   ├── Qwen3.6-27B-Fable-Fus-711-MTP-Q6_K.gguf  <- "fable-fusion-27b" profile (tested, not default - see below)
+    │   └── mmproj-Fable-Fusion-711-F16.gguf         <- vision projector for "fable-fusion-27b"
+    └── Muse-Glimmer-30B-GGUF\
+        ├── Muse-Glimmer-30B-UD-Q4_K_XL.gguf         <- "muse-glimmer-30b" profile (tested, not default - see below)
+        ├── dflash-kquant.gguf                       <- DFlash speculative-decoding drafter for this model
+        └── mmproj-kquant.gguf                       <- vision projector for "muse-glimmer-30b"
 ```
 
 Each profile's `"model"` field in `config.json` is a path relative to
@@ -90,7 +94,8 @@ files — no writes, no updates to the llama.cpp install itself.
 
 ### Upgrading llama.cpp itself
 
-Currently on **build 10155** (`1cbfd1988`), upgraded from b9949. There's no
+Currently on **build 10355** (`dd1ea5243`), upgraded from b9949 -> b10155 ->
+b10355. There's no
 auto-updater — llama.cpp ships as a plain zip of binaries. The process,
 in case it needs repeating:
 
@@ -114,13 +119,26 @@ in case it needs repeating:
    profile and re-test tool-calling + streaming + (for `qwen3.6-main`) vision,
    not just that the process starts. Don't trust a version bump silently.
 
-Last upgrade (b9949 → b10155): all custom flags (`--spec-type draft-mtp`,
-`--reasoning-budget`, `--no-reasoning-preserve`, `--api-key-file`, `--mmproj`,
-`--alias`) still present and working, tool-calling + streaming + vision all
-re-verified end-to-end, MTP draft acceptance still ~85-90%. `qwen3.6-coder`
-re-tested directly against the new build and still fails with the identical
-`rope.dimension_sections` error — confirms that's a permanent property of
-the file needing re-conversion, not a version window that happened to close.
+A new upgrade isn't just routine maintenance — it's also required whenever a
+new model's architecture is too recent for the installed build.
+`muse-glimmer-30b` below failed with `unknown model architecture:
+'muse-glimmer'` on b10155 simply because that model's llama.cpp support
+(PR #26841) merged after b10155 was built. Check the target model's error
+message for `unknown model architecture` before assuming something else is
+wrong, and find the merge date on GitHub to pick a release published after it.
+
+Upgrade history:
+- **b9949 → b10155**: all custom flags (`--spec-type draft-mtp`,
+  `--reasoning-budget`, `--no-reasoning-preserve`, `--api-key-file`,
+  `--mmproj`, `--alias`) still present and working, tool-calling + streaming
+  + vision all re-verified end-to-end, MTP draft acceptance still ~85-90%.
+  `qwen3.6-coder` re-tested directly against the new build and still fails
+  with the identical `rope.dimension_sections` error — confirms that's a
+  permanent property of the file needing re-conversion, not a version
+  window that happened to close.
+- **b10155 → b10355** (to get `muse-glimmer-30b` loading at all): re-ran the
+  `qwen3.6-mtp` tool-calling + MTP check first (72.3 tok/s, 75/90 draft
+  accepted, unchanged) before trusting the new build for anything else.
 
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
@@ -272,13 +290,67 @@ at a time**. While `fable-fusion-27b` is loaded for Open WebUI, it isn't
 available to opencode/Zed/Cline/Copilot — switch back with
 `llama restart qwen3.6-mtp` before coding again.
 
+## Alternative model tried: Muse Glimmer-30B (tested, not adopted)
+
+Tried [unsloth/Muse-Glimmer-30B-GGUF](https://huggingface.co/unsloth/Muse-Glimmer-30B-GGUF)
+(`UD-Q4_K_XL`, `muse-glimmer-30b` profile). Unlike Fable-Fusion, this one is
+a genuine **official release from Meta Superintelligence Lab** (confirmed
+via the HF API `base_model` tag pointing at `meta-models/Muse-Glimmer-30B`,
+not a community merge) — dense 29.6B with a dedicated ViT-G/14 perception
+encoder, purpose-built for local agentic tasks, and its card explicitly
+names OpenClaw as a supported scaffold.
+
+**Needed a llama.cpp upgrade just to load** — b10155 didn't recognize the
+`muse-glimmer` architecture at all (`unknown model architecture:
+'muse-glimmer'`). Checked GitHub: support merged 2026-08-10 (PR #26841),
+one day after our then-current build. Upgraded to b10355 (see "Upgrading
+llama.cpp" above) — first real case of "the model is too new for the
+installed build" as a reason to upgrade, distinct from routine maintenance.
+
+Uses **DFlash speculative decoding** instead of MTP — a separate drafter
+file (`dflash-kquant.gguf`, ~1.5 GiB) paired via `--spec-draft-model`,
+predicting blocks of 16 tokens at once rather than MTP's per-token draft
+head. Reasoning depth is controlled by a `Reasoning strength: <level>` line
+in the system prompt rather than a CLI flag.
+
+What testing actually found:
+- Tool-calling reliable: 8/8 across two batches (including a tight
+  400-token stress test at the card's own `temp=1.0`) — no reasoning-runaway
+  issue like `qwen3.6-mtp` had before its temp was lowered.
+- Vision works — `--mmproj` loads fine alongside `--spec-type draft-dflash`
+  with no conflict (same pleasant surprise as Fable-Fusion had with MTP).
+  Verified: test image correctly described as "a blue circle."
+- **But raw speed is only ~30-34 tok/s** — slower than `qwen3.6-mtp`'s
+  ~72-74 tok/s, and nowhere near the model card's claimed **3.1x speedup /
+  233 tok/s**. That number was measured on an **RTX 5090**, a much more
+  capable single card than this RTX 5060 Ti x2 setup — the marketing
+  benchmark simply doesn't transfer to this hardware class. This is the
+  clearest lesson from this whole evaluation: speculative-decoding speedup
+  claims are hardware-specific and must be measured locally, not assumed
+  from a vendor's benchmark GPU.
+- `--fit` again auto-picked a too-small ctx (8192) despite ~12GB VRAM being
+  free. Tested by hand: **131072 fits with ~10.3GB headroom to spare** —
+  much cheaper than Fable-Fusion's dense attention because only 1 layer in
+  4 is "Global" attention here, the rest are 2048-token sliding-window
+  local layers (bounded KV cost regardless of total context).
+- Model card's own benchmark table compares against Qwen3.6-27B specifically
+  (not the 35B-A3B-MoE this setup runs day to day), with mixed results —
+  ahead on agentic/tool benchmarks like MCP Atlas, behind on coding-specific
+  ones like TerminalBench 2.1, OSWorld-Verified, and SWE-Bench Verified.
+
+**Verdict**: loads and works correctly, tool-calling and vision both solid,
+but not faster than the current setup on this hardware despite the
+headline speculative-decoding claim. Kept as a profile in case its
+purpose-built agentic design (failure recovery, native reasoning-strength
+control) is worth it for a specific task, but `qwen3.6-mtp` stays default.
+
 ## Streaming + tool calls: verified working on this build
 
 Some llama.cpp versions have had bugs combining `stream: true` with `tools`
 (malformed `tool_calls[].function.arguments`, or outright errors — see
 [llama.cpp #20198](https://github.com/ggml-org/llama.cpp/issues/20198)). This
 matters because several clients below stream by default. **Verified directly
-against this build (b10155)**: streamed tool calls come back as correct
+against this build (b10355)**: streamed tool calls come back as correct
 incremental JSON string deltas that concatenate into valid arguments, with a
 correct final `finish_reason: "tool_calls"`. If you update llama.cpp later and
 a client's tool use starts behaving oddly, this is the first thing to
