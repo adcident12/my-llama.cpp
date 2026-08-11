@@ -78,10 +78,12 @@ C:\llama.cpp
     ├── Qwen3.6-27B-Fable-Fusion-711-MTP-GGUF\
     │   ├── Qwen3.6-27B-Fable-Fus-711-MTP-Q6_K.gguf  <- "fable-fusion-27b" profile (tested, not default - see below)
     │   └── mmproj-Fable-Fusion-711-F16.gguf         <- vision projector for "fable-fusion-27b"
-    └── Muse-Glimmer-30B-GGUF\
-        ├── Muse-Glimmer-30B-UD-Q4_K_XL.gguf         <- "muse-glimmer-30b" profile (tested, not default - see below)
-        ├── dflash-kquant.gguf                       <- DFlash speculative-decoding drafter for this model
-        └── mmproj-kquant.gguf                       <- vision projector for "muse-glimmer-30b"
+    ├── Muse-Glimmer-30B-GGUF\
+    │   ├── Muse-Glimmer-30B-UD-Q4_K_XL.gguf         <- "muse-glimmer-30b" profile - Unsloth's own GGUF conversion (~14.8GB)
+    │   ├── dflash-kquant.gguf                       <- DFlash drafter - shared by both muse-glimmer-30b profiles
+    │   └── mmproj-kquant.gguf                       <- vision projector - shared by both muse-glimmer-30b profiles
+    └── Muse-Glimmer-30B-Meta-GGUF\
+        └── muse-glimmer-30B-kquant-dynamic.gguf     <- "muse-glimmer-30b-meta" profile - Meta's own official export (19.7GB)
 ```
 
 Each profile's `"model"` field in `config.json` is a path relative to
@@ -343,6 +345,42 @@ but not faster than the current setup on this hardware despite the
 headline speculative-decoding claim. Kept as a profile in case its
 purpose-built agentic design (failure recovery, native reasoning-strength
 control) is worth it for a specific task, but `qwen3.6-mtp` stays default.
+
+### Unsloth's GGUF vs Meta's own official GGUF: tested head-to-head
+
+The `muse-glimmer-30b` profile above uses **Unsloth's own independent GGUF
+conversion** (`UD-Q4_K_XL`, ~14.8GB). Digging into the model card's
+"K-Quant-Dynamic / 0.2% degradation / 32GB VRAM" claim, neither Unsloth's
+docs nor Meta's own model card (`meta-models/Muse-Glimmer-30B`) explicitly
+names which file that refers to — so we checked Meta's *separate* official
+GGUF repo, [meta-models/Muse-Glimmer-30B-GGUF](https://huggingface.co/meta-models/Muse-Glimmer-30B-GGUF).
+It has a file literally named `muse-glimmer-30B-kquant-dynamic.gguf`
+(19.7GB) — a different, larger quantization than Unsloth's, confirmed by
+filename and exact byte-size match against the repo listing. **This is the
+actual file Meta's 0.2% number was measured against**, not the one in the
+`muse-glimmer-30b` profile.
+
+Added it as `muse-glimmer-30b-meta` (reusing the same `dflash-kquant.gguf`/
+`mmproj-kquant.gguf` — verified byte-identical between both repos before
+downloading only the ~18.3GB text model) and ran the identical test battery
+head-to-head against Unsloth's version:
+
+| | Unsloth `UD-Q4_K_XL` (~14.8GB) | Meta official `kquant-dynamic` (19.7GB) |
+|---|---|---|
+| Tool-calling (tight-budget stress test) | 5/5 | 5/5 |
+| Speed (DFlash active) | 27.7-34.3 tok/s | 27.7-34.7 tok/s |
+| Draft acceptance | ~54-69% | ~54-67% |
+| Vision test | "a blue circle" (correct) | "a blue circle" (correct) |
+| 131072 ctx headroom | ~10.3GB free | ~6.8GB free (bigger weights) |
+
+**No measurable difference** in tool-calling reliability, speed, or vision
+correctness between the two quantizations in this setup's actual usage —
+despite one being ~5GB larger and Meta's own validated 0.2%-degradation
+number applying only to the larger one. Whatever quality gap that 0.2%
+represents didn't surface in tool-calling/vision/speed testing; it would
+need a real statistical benchmark (MMLU-style, many samples) to detect, not
+casual manual comparison — both profiles are kept, `qwen3.6-mtp` still
+stays default for coding either way.
 
 ## Streaming + tool calls: verified working on this build
 
