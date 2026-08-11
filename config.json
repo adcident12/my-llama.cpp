@@ -92,8 +92,8 @@
       "flashAttn": "on",
       "cacheTypeK": "q8_0",
       "cacheTypeV": "q8_0",
-      "extraArgs": "--alias qwen3.6-27b --tensor-split 1,1 --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt",
-      "note": "Official Qwen (Alibaba) dense 27B, plain (no MTP) - the actual model the Muse Glimmer card's 'Qwen3.6-27B Thinking Mode' benchmark comparisons refer to, which this setup never directly tested until now (Fable-Fusion is a DavidAU uncensored merge of the same base, not the pristine original). Same sampling as qwen3.6-mtp/qwen3.6-main for direct comparability."
+      "extraArgs": "--alias qwen3.6-27b --tensor-split 1,1 --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt --mmproj C:\\llama.cpp\\models\\Qwen3.6-27B-GGUF\\mmproj-Qwen3.6-27B-F16.gguf",
+      "note": "Official Qwen (Alibaba) dense 27B, plain (no MTP) - the actual model the Muse Glimmer card's 'Qwen3.6-27B Thinking Mode' benchmark comparisons refer to, which this setup never directly tested until now (Fable-Fusion is a DavidAU uncensored merge of the same base, not the pristine original). Same sampling as qwen3.6-mtp/qwen3.6-main for direct comparability. Vision added (mmproj-F16, shared with the MTP profile - byte-identical between both Unsloth repos) and verified: correctly described the test image."
     },
     "qwen3.6-27b-mtp": {
       "model": "Qwen3.6-27B-MTP-GGUF/Qwen3.6-27B-UD-Q4_K_XL.gguf",
@@ -105,8 +105,8 @@
       "flashAttn": "on",
       "cacheTypeK": "q8_0",
       "cacheTypeV": "q8_0",
-      "extraArgs": "--alias qwen3.6-27b-mtp --tensor-split 1,1 --spec-type draft-mtp --spec-draft-n-max 2 --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt",
-      "note": "Official Qwen dense 27B with MTP - lets us isolate MTP's speedup contribution on a DENSE architecture (vs the sparse MoE qwen3.6-mtp) and compare against the dense+MTP Fable-Fusion merge's numbers (~26-34 tok/s, ~78-86% draft acceptance) using the pristine, uncensored-merge-free original this time."
+      "extraArgs": "--alias qwen3.6-27b-mtp --tensor-split 1,1 --spec-type draft-mtp --spec-draft-n-max 2 --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt --mmproj C:\\llama.cpp\\models\\Qwen3.6-27B-GGUF\\mmproj-Qwen3.6-27B-F16.gguf",
+      "note": "Official Qwen dense 27B with MTP - lets us isolate MTP's speedup contribution on a DENSE architecture (vs the sparse MoE qwen3.6-mtp) and compare against the dense+MTP Fable-Fusion merge's numbers (~26-34 tok/s, ~78-86% draft acceptance) using the pristine, uncensored-merge-free original this time. Vision added (same mmproj as qwen3.6-27b) and verified working TOGETHER with MTP (81% draft acceptance in the same vision request, no conflict) - same pleasant surprise Fable-Fusion had; only the original 35B-A3B qwen3.6-mtp documents MTP+mmproj as incompatible."
     }
   }
 }

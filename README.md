@@ -408,7 +408,7 @@ difference is the MTP head.
 | Draft acceptance | 76-88% | n/a | n/a | **87-92%** | ~54-69% | ~54-67% |
 | Tool-calling (1024 budget) | 3/3 | 3/3 | 5/5 | 4/5 | 3/3 | 5/5 |
 | Tool-calling (tight 400 budget) | 3/5 | 4/5 | **5/5** | 4/5 | 5/5 | 5/5 |
-| Vision | no | yes | not tested | not tested | yes | yes |
+| Vision | no | yes | yes | yes (+MTP, 81% acceptance, no conflict) | yes | yes |
 | VRAM headroom @131072 ctx | ~5.5GB | ~6.2GB | ~8.2GB | ~6.4GB | ~10.3GB | ~6.8GB |
 
 **What this isolation test actually shows:**
@@ -429,6 +429,11 @@ difference is the MTP head.
   spend reasoning before it acts — but this run's numbers suggest it isn't
   fully neutral to reliability either; sample size here is small (5 runs)
   and this specific ranking shouldn't be over-read.
+- **MTP + vision coexist on `qwen3.6-27b-mtp` too** (81% draft acceptance
+  in the same vision request, no conflict) — the same pleasant surprise as
+  Fable-Fusion. Only the original 35B-A3B `qwen3.6-mtp` documents the
+  two as incompatible; every dense Qwen3.6-27B-based MTP variant tested
+  here (official and community merge alike) handles both together fine.
 
 ## Streaming + tool calls: verified working on this build
 
