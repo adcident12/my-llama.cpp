@@ -110,8 +110,8 @@ files — no writes, no updates to the llama.cpp install itself.
 
 ### Upgrading llama.cpp itself
 
-Currently on **build 10355** (`dd1ea5243`), upgraded from b9949 -> b10155 ->
-b10355. There's no
+Currently on **build 10430** (`4c1a0af40`), upgraded from b9949 -> b10155 ->
+b10355 -> b10430. There's no
 auto-updater — llama.cpp ships as a plain zip of binaries. The process,
 in case it needs repeating:
 
@@ -155,6 +155,17 @@ Upgrade history:
 - **b10155 → b10355** (to get `muse-glimmer-30b` loading at all): re-ran the
   `qwen3.6-mtp` tool-calling + MTP check first (72.3 tok/s, 75/90 draft
   accepted, unchanged) before trusting the new build for anything else.
+- **b10355 → b10430**: routine catch-up (75 commits), but two fixes were
+  directly relevant to this setup — `chat: tighten bare function parsing for
+  Qwen models` (#26793, every Qwen3.6/3.8 profile here) and `chat: fix
+  muse-glimmer detection of tool calls after EOM` (#26879, both
+  `muse-glimmer-30b*` profiles). Re-verified `qwen3.6-mtp` (3/3 tool-calling,
+  loads clean, no new warnings) and `muse-glimmer-30b` (4/4 tool-calling)
+  before trusting the build for anything else. Also brought in `spec:
+  auto-detect mtp draft model type` / `common: auto-detect spec type from
+  draft GGUF metadata` (#27005, #26814) — didn't change any `extraArgs` here
+  since explicit `--spec-type` still works and is clearer to read in
+  `config.json`, but it's now optional going forward.
 
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
@@ -518,7 +529,7 @@ Some llama.cpp versions have had bugs combining `stream: true` with `tools`
 (malformed `tool_calls[].function.arguments`, or outright errors — see
 [llama.cpp #20198](https://github.com/ggml-org/llama.cpp/issues/20198)). This
 matters because several clients below stream by default. **Verified directly
-against this build (b10355)**: streamed tool calls come back as correct
+against this build (b10430)**: streamed tool calls come back as correct
 incremental JSON string deltas that concatenate into valid arguments, with a
 correct final `finish_reason: "tool_calls"`. If you update llama.cpp later and
 a client's tool use starts behaving oddly, this is the first thing to
