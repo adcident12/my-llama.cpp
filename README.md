@@ -96,7 +96,7 @@ C:\llama.cpp
     ├── Qwen3.6-27B-MTP-GGUF\
     │   └── Qwen3.6-27B-UD-Q4_K_XL.gguf              <- "qwen3.6-27b-mtp" profile - plain dense + MTP
     └── Qwen3.8-27B-GGUF\
-        ├── Qwen3.8-27B-UD-Q6_K_XL.gguf              <- "qwen3.8-27b" AND "qwen3.8-27b-mtp" profiles (same file, MTP head baked in)
+        ├── Qwen3.8-27B-UD-Q5_K_XL.gguf              <- "qwen3.8-27b" AND "qwen3.8-27b-mtp" profiles (same file, MTP head baked in)
         └── mmproj-F16.gguf                          <- vision projector, shared by both qwen3.8-27b profiles
 ```
 
@@ -453,14 +453,21 @@ Qwen3.5, not Qwen3.6), built on a hybrid **Gated DeltaNet + Gated Attention**
 design: only 16 of its 64 layers carry a real KV cache, the rest use a cheap
 recurrent linear-attention state, conceptually similar to Muse Glimmer's
 sliding-window memory savings. Native context is 262,144 (extensible to 1M
-via YaRN). Downloaded the `UD-Q6_K_XL` quant (25.9GB) instead of the usual
-`UD-Q4_K_XL` to try the higher-precision tier.
+via YaRN).
 
-**`--fit` couldn't help here** (`n_gpu_layers already set by user to 999,
-abort`), and 131072 ctx — which every other 27B profile above fits fine —
-hit a hard CUDA OOM allocating the vision projector buffer. Pinned down to
-**65536** instead, which loads cleanly but leaves only ~1.3-2.4GB free per
-GPU, the tightest headroom of any profile in this setup.
+First tried `UD-Q6_K_XL` (25.9GB) for the higher-precision tier. **`--fit`
+couldn't help pick a context size** (`n_gpu_layers already set by user to
+999, abort`), and 131072 ctx — which every other 27B profile above fits
+fine — hit a hard CUDA OOM allocating the vision projector buffer at that
+quant. It only loaded at 65536, the tightest headroom of any profile in
+this setup (~1.3-2.4GB free per GPU). Since full 131072 context matters
+more here than the extra bit of precision, worked out from that failure's
+memory math which smaller quant would still fit at full context without
+giving up more capability than necessary, and re-tested with `UD-Q5_K_XL`
+(20.2GB) — confirmed to load cleanly at the full 131072 with 2.1-3.5GB free
+per GPU, and as a bonus it's also *faster* than the Q6 attempt (less
+compute per token at a lighter quant). All numbers below are from this
+final Q5_K_XL/131072 configuration.
 
 A genuine surprise while reading the startup log: this GGUF's tensor list
 includes `blk.64.nextn.*` (MTP head) tensors that are silently ignored
@@ -472,24 +479,30 @@ no additional download.
 | | qwen3.8-27b | qwen3.8-27b-mtp |
 |---|---|---|
 | Params | 27B dense (hybrid DeltaNet/Attention) | 27B dense (hybrid DeltaNet/Attention) |
-| Quant | UD-Q6_K_XL (25.9GB) | UD-Q6_K_XL (25.9GB, same file) |
+| Quant | UD-Q5_K_XL (20.2GB) | UD-Q5_K_XL (20.2GB, same file) |
 | Speculative decoding | none | MTP |
-| Speed | ~13.7-13.9 tok/s | ~24.5 tok/s (1.77x) |
-| Draft acceptance | n/a | 72% (mean accepted run length 2.44) |
+| Speed | ~16.85 tok/s | ~28-30 tok/s (~1.7x) |
+| Draft acceptance | n/a | 77-79% (mean accepted run length ~2.5-2.6) |
 | Tool-calling (1024 budget, 3 runs) | 3/3 | 3/3 |
 | Tool-calling (tight 400 budget, 5 runs) | 5/5 | not separately stress-tested (3/3 at 400 budget) |
 | Vision | yes | yes (no conflict with MTP) |
-| ctxSize | 65536 (131072 OOMs) | 65536 |
-| VRAM headroom | ~1.3-2.4GB per GPU | ~1.3-2.4GB per GPU |
+| ctxSize | 131072 | 131072 |
+| VRAM headroom | ~2.1-3.5GB per GPU | ~1.8-2.1GB per GPU |
 
 **What this one shows:**
 - **Slower than plain `qwen3.6-27b` despite being a newer generation.**
-  ~13.8 vs ~20.3 tok/s unaccelerated — the bigger Q6 quant (vs Q4 on the
-  3.6 comparison) and this model's own heavier per-token cost are both
-  likely factors; this isn't a clean apples-to-apples quant comparison.
-- **MTP's payoff here (1.77x) lines up with `qwen3.6-27b-mtp`'s (1.85x)** —
+  ~16.85 vs ~20.3 tok/s unaccelerated — this model's own heavier per-token
+  cost (partly offset here by dropping from Q6 to Q5) outweighs any
+  generational improvement on raw throughput; this isn't a clean
+  apples-to-apples quant comparison against the 3.6 numbers either way.
+- **Lighter quant was a net win on every axis, not just a size/speed
+  tradeoff.** Q5_K_XL over Q6_K_XL fit the full context Q6 couldn't, ran
+  faster (~16.85 vs ~13.8 tok/s unaccelerated), and even came out with
+  *better* MTP draft acceptance (77-79% vs 72%) — no measurable downside
+  found in this setup's casual testing.
+- **MTP's payoff here (~1.7x) lines up with `qwen3.6-27b-mtp`'s (1.85x)** —
   further evidence that on this hardware, MTP reliably buys dense models
-  roughly a 1.8x speedup regardless of exact architecture, while MoE
+  roughly a 1.7-1.85x speedup regardless of exact architecture, while MoE
   sparsity remains the bigger lever (`qwen3.6-mtp` still leads at ~74 tok/s).
 - **Tool-calling improvements the model card advertises** ("parsing nested
   objects to make tool calling succeed more") held up in practice — 8/8
