@@ -110,8 +110,8 @@ files — no writes, no updates to the llama.cpp install itself.
 
 ### Upgrading llama.cpp itself
 
-Currently on **build 10430** (`4c1a0af40`), upgraded from b9949 -> b10155 ->
-b10355 -> b10430. There's no
+Currently on **build 10448** (`ad1de39e0`), upgraded from b9949 -> b10155 ->
+b10355 -> b10430 -> b10448. There's no
 auto-updater — llama.cpp ships as a plain zip of binaries. The process,
 in case it needs repeating:
 
@@ -166,6 +166,16 @@ Upgrade history:
   draft GGUF metadata` (#27005, #26814) — didn't change any `extraArgs` here
   since explicit `--spec-type` still works and is clearer to read in
   `config.json`, but it's now optional going forward.
+- **b10430 → b10448**: small catch-up (18 commits), the one directly
+  relevant fix was `ggml: recurrent state rollback for ggml_ssm_scan`
+  (#26623) — the exact op backing `qwen3.8-27b`/`qwen3.8-27b-mtp`'s Gated
+  DeltaNet linear-attention layers. Re-tested both: tool-calling 3/3,
+  vision still correct, speed unchanged (~17.2 tok/s, matching the ~16.85
+  tok/s measured pre-upgrade) — no regression. Also updated `cpp-httplib`
+  and `BoringSSL` (server's HTTP/TLS stack, worth noting since this server
+  is bound to `0.0.0.0` on the LAN) and migrated the deprecated
+  `--mmap`/`--no-mmap` flags to `--load-mode` internally (not used in any
+  profile here, no `extraArgs` change needed).
 
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
