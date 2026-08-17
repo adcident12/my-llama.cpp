@@ -110,8 +110,8 @@ files — no writes, no updates to the llama.cpp install itself.
 
 ### Upgrading llama.cpp itself
 
-Currently on **build 10448** (`ad1de39e0`), upgraded from b9949 -> b10155 ->
-b10355 -> b10430 -> b10448. There's no
+Currently on **build 10456** (`f275595dd`), upgraded from b9949 -> b10155 ->
+b10355 -> b10430 -> b10448 -> b10456. There's no
 auto-updater — llama.cpp ships as a plain zip of binaries. The process,
 in case it needs repeating:
 
@@ -176,6 +176,13 @@ Upgrade history:
   is bound to `0.0.0.0` on the LAN) and migrated the deprecated
   `--mmap`/`--no-mmap` flags to `--load-mode` internally (not used in any
   profile here, no `extraArgs` change needed).
+- **b10448 → b10456**: small catch-up (8 commits), mostly built-in web UI
+  (unused here) and SYCL-only fixes. The one worth re-checking was `chat:
+  refactor handling supports_string_content / supports_typed_content` —
+  touches how the server tells plain-string chat messages apart from
+  typed/array content (i.e. vision messages). Re-tested `qwen3.8-27b`:
+  vision still correctly described the test image (typed content) and
+  tool-calling still 3/3 (plain string content) — no regression either way.
 
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
