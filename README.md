@@ -95,9 +95,13 @@ C:\llama.cpp
     │   └── Qwen3.6-27B-UD-Q4_K_XL.gguf              <- "qwen3.6-27b" profile - plain dense, no MTP
     ├── Qwen3.6-27B-MTP-GGUF\
     │   └── Qwen3.6-27B-UD-Q4_K_XL.gguf              <- "qwen3.6-27b-mtp" profile - plain dense + MTP
-    └── Qwen3.8-27B-GGUF\
-        ├── Qwen3.8-27B-UD-Q5_K_XL.gguf              <- "qwen3.8-27b" AND "qwen3.8-27b-mtp" profiles (same file, MTP head baked in)
-        └── mmproj-F16.gguf                          <- vision projector, shared by both qwen3.8-27b profiles
+    ├── Qwen3.8-27B-GGUF\
+    │   ├── Qwen3.8-27B-UD-Q5_K_XL.gguf              <- "qwen3.8-27b" AND "qwen3.8-27b-mtp" profiles (Dynamic V2.0, same file, MTP head baked in)
+    │   └── mmproj-F16.gguf                          <- vision projector, shared by ALL FOUR qwen3.8-27b* profiles (V2 and V3 alike, byte-identical)
+    └── Qwen3.8-27B-GGUF-v3\
+        ├── Qwen3.8-27B-UD-Q5_K_XL.gguf              <- "qwen3.8-27b-v3" AND "qwen3.8-27b-v3-mtp" profiles (Dynamic V3.0 re-quant, different file despite same name)
+        └── MTP\
+            └── mtp-Qwen3.8-27B-Q4_0.gguf             <- standalone MTP draft model for "qwen3.8-27b-v3-mtp" - new in V3, didn't exist for V2
 ```
 
 Each profile's `"model"` field in `config.json` is a path relative to
@@ -110,8 +114,8 @@ files — no writes, no updates to the llama.cpp install itself.
 
 ### Upgrading llama.cpp itself
 
-Currently on **build 10456** (`f275595dd`), upgraded from b9949 -> b10155 ->
-b10355 -> b10430 -> b10448 -> b10456. There's no
+Currently on **build 10549** (`b2e5e9b28`), upgraded from b9949 -> b10155 ->
+b10355 -> b10430 -> b10448 -> b10456 -> b10549. There's no
 auto-updater — llama.cpp ships as a plain zip of binaries. The process,
 in case it needs repeating:
 
@@ -183,6 +187,16 @@ Upgrade history:
   typed/array content (i.e. vision messages). Re-tested `qwen3.8-27b`:
   vision still correctly described the test image (typed content) and
   tool-calling still 3/3 (plain string content) — no regression either way.
+- **b10456 → b10549**: larger catch-up (93 commits). Confirmed `server:
+  make models endpoints private when authentication is enabled` (#26347) —
+  `/v1/models` now correctly returns 401 without the API key (previously
+  may have leaked model names unauthenticated; this server is bound to
+  `0.0.0.0` on the LAN, so this matters). Also landed a tensor-split fix
+  that was then reverted in the same window (#26502 / #27433, net no
+  change) and `common: gracefully fallback on unsupported regex patterns
+  in JSON schema` (#26939, tool-call schema robustness). Re-verified
+  `qwen3.6-mtp` (3/3 tool-calling, tensor-split still splits evenly across
+  both GPUs, no new warnings) before trusting the build for anything else.
 
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
@@ -540,13 +554,58 @@ no additional download.
   every dense profile tested so far (Fable-Fusion, `qwen3.6-27b-mtp`, now
   `qwen3.8-27b-mtp`) handles both simultaneously with no conflict.
 
+### Unsloth re-quantized Qwen3.8-27B: Dynamic V2.0 vs V3.0, side by side
+
+Five days after the above testing, Unsloth silently re-quantized the entire
+`Qwen3.8-27B-GGUF` repo with their new **Dynamic V3.0** pipeline (up from
+V2.0) — same filenames, genuinely different files: `UD-Q5_K_XL.gguf` is
+20.88GB now vs 20.22GB before (confirmed via `content-length`, not
+assumed). They also restructured the whole quant lineup into more granular
+tiers and, for the first time, published a **standalone MTP draft model**
+(`MTP/mtp-Qwen3.8-27B-Q4_0.gguf`, 1.37GB) instead of only the baked-in
+`nextn.*` tensors from before.
+
+Rather than overwrite the working `qwen3.8-27b`/`qwen3.8-27b-mtp` profiles,
+the V3.0 files were added as two new ones — `qwen3.8-27b-v3` and
+`qwen3.8-27b-v3-mtp` — so both generations can be compared and switched
+between directly:
+
+| | qwen3.8-27b (V2.0) | qwen3.8-27b-v3 (V3.0) | qwen3.8-27b-mtp (V2.0) | qwen3.8-27b-v3-mtp (V3.0) |
+|---|---|---|---|---|
+| Quant file size | 20.22GB | 20.88GB | 20.22GB (same file) | 20.88GB (same file) |
+| MTP source | — | — | baked-in `nextn.*` tensors, 0 extra download | standalone gguf, 1.37GB download |
+| Speed | ~16.85 tok/s | ~16.7 tok/s | ~28-30 tok/s | ~27-30 tok/s |
+| Draft acceptance | n/a | n/a | 77-79% | 63.6-75.6% (more variable) |
+| Tool-calling (1024/400 budget) | 8/8 | 8/8 | 3/3 | 3/3 |
+| Vision | yes | yes | yes | yes |
+| VRAM headroom @131072 | ~2.1-3.5GB/GPU | ~2.3-2.9GB/GPU | ~1.8-2.1GB/GPU | as low as ~0.9GB on one GPU |
+
+**What this comparison shows:**
+- **The base model is a clean swap-in, no downside found.** V3.0's extra
+  0.66GB of weight didn't move speed (~16.7 vs ~16.85 tok/s, within noise)
+  or meaningfully change VRAM headroom. Unsloth's own claim for V3.0 is
+  >10% better accuracy at the same size class — this setup can't verify
+  accuracy directly (no eval harness), but nothing about running it got
+  worse.
+- **The new standalone MTP file is NOT an upgrade over the old zero-download
+  trick.** Similar speed, but *lower and more variable* draft acceptance
+  (63.6-75.6% vs a steadier 77-79%) and a real, uneven VRAM cost — one GPU
+  dropped to under 1GB free, tighter than any other profile in this setup.
+  The baked-in `nextn.*` tensors are still present in the V3.0 file too
+  (confirmed in the load log, just re-quantized at different byte sizes),
+  so `--spec-type draft-mtp` directly on the V3 base file — free, no
+  download — is worth trying before reaching for the new standalone file.
+- Confirms the recurring finding still holds on the newer quant: MTP buys
+  dense models roughly a 1.7-1.8x speedup, but MoE sparsity still wins
+  outright (`qwen3.6-mtp` at ~74 tok/s beats every dense MTP variant here).
+
 ## Streaming + tool calls: verified working on this build
 
 Some llama.cpp versions have had bugs combining `stream: true` with `tools`
 (malformed `tool_calls[].function.arguments`, or outright errors — see
 [llama.cpp #20198](https://github.com/ggml-org/llama.cpp/issues/20198)). This
 matters because several clients below stream by default. **Verified directly
-against this build (b10430)**: streamed tool calls come back as correct
+against this build (b10549)**: streamed tool calls come back as correct
 incremental JSON string deltas that concatenate into valid arguments, with a
 correct final `finish_reason: "tool_calls"`. If you update llama.cpp later and
 a client's tool use starts behaving oddly, this is the first thing to
