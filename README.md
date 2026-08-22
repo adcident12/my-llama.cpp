@@ -114,16 +114,24 @@ files — no writes, no updates to the llama.cpp install itself.
 
 ### Upgrading llama.cpp itself
 
-Currently on **build 10549** (`b2e5e9b28`), upgraded from b9949 -> b10155 ->
-b10355 -> b10430 -> b10448 -> b10456 -> b10549. There's no
+Currently on **build 10566** (`bb4caa754`), upgraded from b9949 -> b10155 ->
+b10355 -> b10430 -> b10448 -> b10456 -> b10549 -> b10566. There's no
 auto-updater — llama.cpp ships as a plain zip of binaries. The process,
 in case it needs repeating:
 
 1. `llama stop` first — the exe/dlls are locked while running.
-2. Find the latest release with populated assets at
-   [github.com/ggml-org/llama.cpp/releases](https://github.com/ggml-org/llama.cpp/releases)
-   — the very newest tag sometimes has 0 assets for a while if its build/upload
-   is still in progress; use the one just before it if so.
+2. Find the binary release at
+   [github.com/ggml-org/llama.cpp/releases](https://github.com/ggml-org/llama.cpp/releases).
+   **As of 2026-08-21 llama.cpp switched to semantic versioning for its
+   "stable" marker** (`vX.Y.Z`, e.g. `v0.2.0`) — that tag is now
+   `releases/latest` on the GitHub API but carries **no platform
+   binaries**, just a `nightly-tag.txt` asset. Open that release's notes
+   for a line like `Nightly build: b10566` and download the `bNNNNN` tag
+   it points to instead — that's the one with the actual
+   `llama-b<N>-bin-win-cuda-*.zip` assets. (Older `bNNNNN` tags occasionally
+   still have 0 assets for a while if their build/upload is still in
+   progress; use the nightly tag named in the next `vX.Y.Z` release, or the
+   one just before it, if so.)
 3. Download **both** `llama-b<N>-bin-win-cuda-<X.X>-x64.zip` (the binaries)
    and `cudart-llama-bin-win-cuda-<X.X>-x64.zip` (CUDA runtime DLLs) matching
    the CUDA version your driver reports (`nvidia-smi` header, "CUDA Version") —
@@ -197,6 +205,14 @@ Upgrade history:
   in JSON schema` (#26939, tool-call schema robustness). Re-verified
   `qwen3.6-mtp` (3/3 tool-calling, tensor-split still splits evenly across
   both GPUs, no new warnings) before trusting the build for anything else.
+- **b10549 → b10566**: small catch-up (17 commits), all SYCL/OpenCL/ARM
+  backend fixes plus the release-tooling changes that shipped this exact
+  versioning switch (`llama.cpp: bump version to 0.2.0`, `scripts: add
+  release.sh`) — nothing touching the CUDA path this setup runs on. This
+  is also the release where `releases/latest` first became a `vX.Y.Z` tag
+  instead of a `bNNNNN` one — see the note above on finding the actual
+  binary tag going forward. Re-verified `qwen3.6-mtp` and `qwen3.8-27b-v3`
+  tool-calling (3/3 each), no regression.
 
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
