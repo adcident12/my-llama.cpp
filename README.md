@@ -114,8 +114,8 @@ files — no writes, no updates to the llama.cpp install itself.
 
 ### Upgrading llama.cpp itself
 
-Currently on **build 10566** (`bb4caa754`), upgraded from b9949 -> b10155 ->
-b10355 -> b10430 -> b10448 -> b10456 -> b10549 -> b10566. There's no
+Currently on **build 10621** (`c1d0e7a00`), upgraded from b9949 -> b10155 ->
+b10355 -> b10430 -> b10448 -> b10456 -> b10549 -> b10566 -> b10621. There's no
 auto-updater — llama.cpp ships as a plain zip of binaries. The process,
 in case it needs repeating:
 
@@ -213,6 +213,19 @@ Upgrade history:
   instead of a `bNNNNN` one — see the note above on finding the actual
   binary tag going forward. Re-verified `qwen3.6-mtp` and `qwen3.8-27b-v3`
   tool-calling (3/3 each), no regression.
+- **b10566 → b10621** (v0.3.0): landed via the same `vX.Y.Z` -> nightly-tag
+  lookup as last time. Notable fixes for this setup: `common: fix
+  draft-mtp with embeddings` (#27400/#26352/#27299) and a tensor-parallel
+  meta-backend split-state propagation fix (#27574) — both land squarely
+  on flags every profile here uses (`--spec-type draft-mtp`,
+  `--tensor-split 1,1`). Also: `fit` moved out of the server and now
+  accounts for `n_streams` (#27496) — doesn't change anything since every
+  profile here hand-sets `ctxSize` rather than relying on `--fit`, but
+  worth knowing if that's ever revisited. Re-verified `qwen3.6-mtp`
+  (3/3 tool-calling, streaming, MTP draft acceptance ~87% - unchanged)
+  and `qwen3.8-27b-v3-mtp` (3/3 tool-calling, vision, ~72.5-72.9% draft
+  acceptance - matches the pre-upgrade 63.6-75.6% range) before trusting
+  the build.
 
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
@@ -621,7 +634,7 @@ Some llama.cpp versions have had bugs combining `stream: true` with `tools`
 (malformed `tool_calls[].function.arguments`, or outright errors — see
 [llama.cpp #20198](https://github.com/ggml-org/llama.cpp/issues/20198)). This
 matters because several clients below stream by default. **Verified directly
-against this build (b10549)**: streamed tool calls come back as correct
+against this build (b10621)**: streamed tool calls come back as correct
 incremental JSON string deltas that concatenate into valid arguments, with a
 correct final `finish_reason: "tool_calls"`. If you update llama.cpp later and
 a client's tool use starts behaving oddly, this is the first thing to
