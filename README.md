@@ -251,6 +251,22 @@ Upgrade history:
   `--tensor-split 1,1` setup every profile uses. Re-verified `qwen3.8-27b-v3`
   (3/3 tool-calling, vision correct) - no regression.
 
+  **Resolved**: added `--no-reasoning-preserve` to all 8 affected profiles,
+  making it consistent across every profile in `config.json`. The decision
+  came down to asymmetric risk rather than certainty about client
+  behavior - it's unconfirmed whether opencode/Zed/Cline actually echo
+  `reasoning_content` back into subsequent turns for the
+  `@ai-sdk/openai-compatible`-style provider these clients use (the AI SDK
+  ecosystem does have "reasoning replay" handling for other providers like
+  Anthropic/Bedrock, going by opencode's own changelog, so it's plausible).
+  If they don't replay it, disabling this flag costs nothing. If they do,
+  leaving the new default on would silently erode context budget over a
+  long agentic session - exactly the failure mode `--reasoning-budget` and
+  the careful 122880/8192 splits throughout this README exist to prevent.
+  Re-verified `qwen3.8-27b-v3` after the change: loads clean (log reverts
+  to the old "consider enabling it via --reasoning-preserve" phrasing,
+  confirming it's off), tool-calling still works.
+
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
 ```
