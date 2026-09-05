@@ -706,6 +706,16 @@ getting cut off on big single-file generations, shift the split, e.g.
 
 ### opencode
 
+**Requires opencode ≥1.18.19.** Every version through 1.18.18 hardcoded
+`temperature: 0.55, top_p: 1` for any model whose ID contained "Qwen" -
+silently overriding whatever this setup's `--temp`/`--top-p` was tuned to,
+regardless of `config.json`
+([`fix(opencode): remove Qwen sampling defaults`](https://github.com/sst/opencode/pull/43310),
+merged 2026-08-21). Below 1.18.19, the sampling tuning documented throughout
+this README may never have actually reached the model when driven through
+opencode. Check with `opencode --version` (or `bun x opencode-ai@latest --version`)
+and update if older.
+
 Edit `~/.config/opencode/opencode.json` (global) or `opencode.json` in your
 project root — uses the Vercel AI SDK's `@ai-sdk/openai-compatible` package
 under the hood:
@@ -784,7 +794,26 @@ hand-editing `settings.json` with a local `api_url` — if that happens, use
 the UI "Add Provider" modal instead and restart Zed
 ([zed-industries/zed#58443](https://github.com/zed-industries/zed/issues/58443)).
 
+**Recommend Zed ≥1.18.0** (2026-08-26): fixes the inline assistant "doing
+nothing" when a model emits reasoning before its tool call
+([#61220](https://github.com/zed-industries/zed/pull/61220)) - exactly this
+setup's thinking-then-tool-call pattern. Only affects the inline assistant,
+not the main Agent Panel.
+
 ### Cline (VS Code)
+
+**Requires Cline ≥4.1.13.** Versions 4.1.12 and earlier had a bug where a
+custom OpenAI-Compatible model's capability list, when inferred from
+convenience flags like `supportsReasoning` (true for reasoning models like
+every profile here), was read as an authoritative denial and **silently
+stripped every tool from the request** - tool-calling would appear to just
+not work, with no visible error
+([release notes for 4.1.12](https://github.com/cline/cline/releases/tag/v4.1.12)
+and [4.1.13](https://github.com/cline/cline/releases/tag/v4.1.13), both
+2026-08-21/22). If Cline + a local reasoning model ever silently refused to
+call tools, this bug is the likely explanation. Current is 4.1.17, which
+also added "Qwen3.8 27B" to Cline's built-in model catalog - check
+**Help → About** or the extension's marketplace page for your version.
 
 Settings gear → **API Provider: "OpenAI Compatible"**:
 - **Base URL**: `http://localhost:11435/v1`
