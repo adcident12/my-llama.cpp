@@ -114,8 +114,9 @@ files — no writes, no updates to the llama.cpp install itself.
 
 ### Upgrading llama.cpp itself
 
-Currently on **build 10621** (`c1d0e7a00`), upgraded from b9949 -> b10155 ->
-b10355 -> b10430 -> b10448 -> b10456 -> b10549 -> b10566 -> b10621. There's no
+Currently on **build 10809** (`5266f24da`), upgraded from b9949 -> b10155 ->
+b10355 -> b10430 -> b10448 -> b10456 -> b10549 -> b10566 -> b10621 -> b10809.
+There's no
 auto-updater — llama.cpp ships as a plain zip of binaries. The process,
 in case it needs repeating:
 
@@ -226,6 +227,29 @@ Upgrade history:
   and `qwen3.8-27b-v3-mtp` (3/3 tool-calling, vision, ~72.5-72.9% draft
   acceptance - matches the pre-upgrade 63.6-75.6% range) before trusting
   the build.
+- **b10621 → b10809** (v0.4.0): large jump (~190 commits). **Behavior
+  change worth knowing about**: `server: enable preserve_reasoning kwarg
+  by default` (#28174) flips `--reasoning-preserve`'s default from
+  "whatever the chat template says" to unconditionally **on**. Audited
+  every profile in `config.json`: `qwen3.6-mtp`, `qwen3.6-main`,
+  `qwen3.6-coder`, and `fable-fusion-27b` already pin
+  `--no-reasoning-preserve` explicitly (unaffected). The other 8 -
+  `muse-glimmer-30b`, `muse-glimmer-30b-meta`, `qwen3.6-27b`,
+  `qwen3.6-27b-mtp`, and all four `qwen3.8-27b*` profiles - never set
+  either flag, so they silently picked up the new default. Verified the
+  mechanics with a real 2-turn request (echoing turn 1's
+  `reasoning_content` back in turn 2): the old thinking trace got folded
+  back into the prompt and served almost entirely from KV cache (229/233
+  prompt tokens cached, only 4 new) - so it's not extra *compute*, but it
+  does mean reasoning traces now accumulate in the context window across
+  a long conversation instead of being dropped each turn. Left the 8
+  affected profiles as-is for now (not a decision to make unilaterally -
+  this changes real context-budget behavior on profiles this project
+  otherwise hand-tunes carefully) - see if a `--no-reasoning-preserve` pass
+  across them is wanted. Also relevant: `CUDA: Allow concurrent streams
+  per split for multi-GPU` (#28198), which touches the exact
+  `--tensor-split 1,1` setup every profile uses. Re-verified `qwen3.8-27b-v3`
+  (3/3 tool-calling, vision correct) - no regression.
 
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
