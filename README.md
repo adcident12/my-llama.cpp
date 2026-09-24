@@ -114,9 +114,9 @@ files — no writes, no updates to the llama.cpp install itself.
 
 ### Upgrading llama.cpp itself
 
-Currently on **build 10809** (`5266f24da`), upgraded from b9949 -> b10155 ->
-b10355 -> b10430 -> b10448 -> b10456 -> b10549 -> b10566 -> b10621 -> b10809.
-There's no
+Currently on **build 11146** (`7fe450e19`), upgraded from b9949 -> b10155 ->
+b10355 -> b10430 -> b10448 -> b10456 -> b10549 -> b10566 -> b10621 -> b10809
+-> b11146. There's no
 auto-updater — llama.cpp ships as a plain zip of binaries. The process,
 in case it needs repeating:
 
@@ -135,8 +135,14 @@ in case it needs repeating:
    one just before it, if so.)
 3. Download **both** `llama-b<N>-bin-win-cuda-<X.X>-x64.zip` (the binaries)
    and `cudart-llama-bin-win-cuda-<X.X>-x64.zip` (CUDA runtime DLLs) matching
-   the CUDA version your driver reports (`nvidia-smi` header, "CUDA Version") —
-   13.3 here.
+   the CUDA version your driver reports (`nvidia-smi` header, "CUDA Version")
+   — this driver reports 13.3. **The exact `X.X` a release ships can change**
+   (b11146/v0.5.0 dropped the 13.3 build entirely, shipping only 12.4 and
+   13.4) — if your exact version isn't offered, pick the nearest newer one;
+   CUDA's minor-version compatibility means a 13.3 driver runs a 13.4-built
+   binary fine (verified empirically here, see upgrade history below), it's
+   only a major-version driver bump that would actually require an
+   NVIDIA driver update.
 4. Back up first: move the current `*.exe`/`*.dll` files (not `models\`) into
    a dated subfolder like `_backup-b<old>\`, so there's an instant rollback if
    the new build regresses something.
@@ -266,6 +272,24 @@ Upgrade history:
   Re-verified `qwen3.8-27b-v3` after the change: loads clean (log reverts
   to the old "consider enabling it via --reasoning-preserve" phrasing,
   confirming it's off), tool-calling still works.
+- **b10809 → b11146** (v0.5.0): very large jump (~340 commits). **Dropped
+  the CUDA 13.3 Windows build entirely** in favor of 12.4/13.4 - installed
+  the 13.4 build against this rig's 13.3 driver anyway (CUDA's
+  minor-version compatibility within the same major version), and it works
+  fine with no CUDA warnings in any profile's startup log - no driver
+  update needed. Notable fixes checked against this setup's actual
+  architecture tags (confirmed via direct GGUF inspection with the `gguf`
+  Python package: `qwen3.6-mtp` is `qwen35moe`, `qwen3.8-27b*` is `qwen35`):
+  `TP: fix split state and granularity for fused QKV gemma4, qwen35`
+  (#28965) names this setup's exact dense-Qwen architecture and its
+  `--tensor-split 1,1` usage; `chat: Fix Muse Glimmer tool-call first
+  parser error` (#29242); `Enable CUDA graphs for MTP drafting` (#28549),
+  relevant to every `--spec-type draft-mtp` profile. Re-verified
+  `qwen3.6-mtp` (3/3 tool-calling, MTP draft acceptance 88.2-88.5% -
+  matches/slightly above the historical 87-92% range, speed 74-76 tok/s),
+  `qwen3.8-27b-v3` (3/3 tool-calling, vision correct, GPUs balanced evenly
+  under the new TP fix), and `muse-glimmer-30b` (4/4 tool-calling) - no
+  regressions anywhere.
 
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
