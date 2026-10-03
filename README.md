@@ -692,6 +692,63 @@ between directly:
   dense models roughly a 1.7-1.8x speedup, but MoE sparsity still wins
   outright (`qwen3.6-mtp` at ~74 tok/s beats every dense MTP variant here).
 
+## Bonsai 2 27B: a ternary Qwen3.8-27B on a forked llama.cpp (`bonsai2-27b`)
+
+[prism-ml/Ternary-Bonsai-2-27B-gguf](https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf)
+is Qwen3.8-27B — the same base as the `qwen3.8-27b*` profiles — with its
+weights reduced to ternary values {−1, 0, +1} at 1.72 bits/weight. The
+`PQ2_0` pack is 7.2GB against 20.9GB for the `UD-Q5_K_XL` file those
+profiles load.
+
+**It needs its own llama.cpp.** Stock llama.cpp rejects the `PQ2_0`/`PTQ1_0`
+tensor types, so this profile runs from a separate install of the
+[PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp) fork:
+
+```
+C:\llama.cpp-prism\                       <- fork, release prism-b10754-2459f68 (win-cuda-13.3 build)
+└── models\
+    ├── Ternary-Bonsai-2-27B-PQ2_0.gguf
+    └── Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf
+```
+
+`C:\llama.cpp` is untouched. The fork does **not** follow the upgrade
+procedure above — update it on its own from the fork's releases page. The
+profile points at it with per-profile `llamaDir`/`modelsDir` (see
+"Adding/editing profiles"), so `llama start bonsai2-27b`, the dashboard and
+the tray all work the same as for any other profile. Still one model at a
+time: starting it means stopping whatever else is loaded.
+
+Clients connect exactly as for the other profiles — base URL
+`http://localhost:11435/v1`, same API key — with model id `bonsai2-27b`.
+
+One deliberate difference: **it runs on one GPU.**
+`--device CUDA1 --mmproj-device CUDA1` keeps everything on the card with no
+display attached; GPU 0 stays free.
+
+Measured through the control server, same battery as every other profile:
+
+| | qwen3.8-27b-v3 (UD-Q5_K_XL) | bonsai2-27b (PQ2_0) |
+|---|---|---|
+| File size | 20.9GB | 7.2GB |
+| VRAM @131072 ctx, vision loaded | ~27GB across both GPUs | ~12.4GB on one GPU |
+| Load time | ~2.5 min | ~15 s |
+| Speed | ~17 tok/s (28-30 with MTP) | ~42 tok/s |
+| Tool-calling (1024 budget ×3 / 400 budget ×5) | 3/3, 5/5 | 3/3, 5/5 |
+| Streamed tool call | valid | valid |
+| Vision | yes | yes |
+
+A 3-step tool loop (`read_file` → `get_weather` → final answer) also
+completed correctly.
+
+**What this does not show.** Answer quality is unmeasured here — the
+vendor's "98.2% of FP16" figure is their own benchmark run. And the tests
+above are short: the vendor's own
+[KNOWN_ISSUES.md](https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf/blob/main/KNOWN_ISSUES.md)
+lists malformed or looping tool calls as an open model limitation, which
+would show up in long agentic sessions rather than in an 8-call battery.
+Same file: `reasoning_effort: "high"` returns HTTP 500 (use `xhigh`, the
+default, or `medium`), and exactly one system message is allowed, first.
+
 ## Streaming + tool calls: verified working on this build
 
 Some llama.cpp versions have had bugs combining `stream: true` with `tools`
@@ -977,6 +1034,11 @@ Each profile in `config.json`:
   "extraArgs": "--alias my-name --any --other --llama-server --flags"
 }
 ```
+
+A profile may also set its own `"llamaDir"` and `"modelsDir"` to run from a
+different llama.cpp install than the top-level ones — used by `bonsai2-27b`,
+which needs a fork (see "Bonsai 2 27B" above). Profiles that omit them use
+the top-level values as before.
 
 Only fields you set are passed as flags; anything omitted lets llama-server's
 own `--fit` (on by default) auto-tune it to whatever VRAM is free. Changes
