@@ -1,0 +1,225 @@
+<title>Qwen3.8-27B at 5.5, 2.3 and 1.7 Bits</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  /* Layout: one reading column; result blocks are bar groups drawn to a shared 0-100% scale, one colour per model. */
+  :root {
+    --bg: #f5f6f4;
+    --surface: #ffffff;
+    --ink: #17201c;
+    --muted: #5d6963;
+    --rule: rgba(23, 32, 28, 0.13);
+    --track: rgba(23, 32, 28, 0.07);
+    --q5: #2f5f8a;      /* qwen3.8-27b-v3, Q5_K_XL */
+    --iq2: #c2702a;     /* Saluki, IQ2-mix */
+    --tern: #6e8f3a;    /* Bonsai, ternary */
+    --warn: #a63d2f;
+    --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+    --font-body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121815; --surface: #1a221e; --ink: #e6ece8; --muted: #9aa8a1;
+      --rule: rgba(230, 236, 232, 0.14); --track: rgba(230, 236, 232, 0.08);
+      --q5: #6fa3d4; --iq2: #e3954f; --tern: #9cc25f; --warn: #e07a68;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121815; --surface: #1a221e; --ink: #e6ece8; --muted: #9aa8a1;
+    --rule: rgba(230, 236, 232, 0.14); --track: rgba(230, 236, 232, 0.08);
+    --q5: #6fa3d4; --iq2: #e3954f; --tern: #9cc25f; --warn: #e07a68;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 16px/1.6 var(--font-body);
+    padding-inline: 16px; padding-block: 32px 64px;
+  }
+  .page { max-width: 860px; margin-inline: auto; display: grid; gap: 48px; }
+  h1, h2, h3 { font-family: var(--font-display); line-height: 1.1; text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(2rem, 6vw, 3.1rem); font-weight: 800; font-stretch: 80%; letter-spacing: -0.01em; }
+  h2 { font-size: 1.55rem; font-weight: 700; font-stretch: 85%; }
+  h3 { font-size: 1.05rem; font-weight: 700; }
+  p { margin: 0; max-width: 68ch; }
+  section { display: grid; gap: 16px; }
+  .eyebrow { font: 600 0.75rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .lede { font-size: 1.12rem; color: var(--muted); }
+  code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+  a { color: var(--q5); }
+
+  /* the three contenders */
+  .models { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .model { background: var(--surface); border: 1px solid var(--rule); border-top: 4px solid var(--c); border-radius: 6px; padding: 14px 16px; display: grid; gap: 6px; min-width: 0; }
+  .model h3 { color: var(--c); }
+  .bits { font: 700 2rem/1 var(--font-display); font-stretch: 80%; font-variant-numeric: tabular-nums; }
+  .bits small { font: 400 0.8rem var(--font-mono); color: var(--muted); margin-left: 4px; }
+  .model dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-size: 0.86rem; }
+  .model dt { color: var(--muted); }
+  .model dd { margin: 0; font-family: var(--font-mono); font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+
+  .takeaways { display: grid; gap: 12px; padding: 0; margin: 0; list-style: none; }
+  .takeaways li { display: grid; grid-template-columns: 7.5rem 1fr; gap: 12px; align-items: baseline; border-top: 1px solid var(--rule); padding-top: 12px; }
+  .takeaways b { font: 700 0.8rem/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: 0.05em; }
+  @media (max-width: 520px) { .takeaways li { grid-template-columns: 1fr; gap: 4px; } }
+
+  /* bar groups, all on one 0-100% scale */
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 0.85rem; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 12px; height: 12px; border-radius: 2px; background: var(--c); }
+  .bench { display: grid; gap: 22px; }
+  .group { display: grid; gap: 6px; }
+  .group header { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+  .group header span { font-size: 0.8rem; color: var(--muted); font-family: var(--font-mono); }
+  .bar { display: grid; grid-template-columns: 4.6rem 1fr 6.6rem; gap: 10px; align-items: center; font-size: 0.85rem; }
+  .bar .who { color: var(--muted); font-family: var(--font-mono); font-size: 0.78rem; }
+  .bar .track { height: 14px; background: var(--track); border-radius: 2px; position: relative; overflow: hidden; }
+  .bar .fill { position: absolute; inset: 0 auto 0 0; background: var(--c); border-radius: 2px; }
+  .bar .val { font-family: var(--font-mono); font-size: 0.8rem; font-variant-numeric: tabular-nums; text-align: right; }
+  .bar.best .val { font-weight: 600; }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 600px; font-size: 0.88rem; }
+  th, td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { font: 600 0.75rem/1.2 var(--font-mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  thead th.q5 { color: var(--q5); } thead th.iq2 { color: var(--iq2); } thead th.tern { color: var(--tern); }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.sub { padding-left: 24px; color: var(--muted); }
+
+  .note { border-left: 3px solid var(--warn); padding: 4px 0 4px 14px; display: grid; gap: 8px; }
+  .note h3 { color: var(--warn); }
+  ul.plain { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; max-width: 68ch; }
+  footer { font-size: 0.82rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 16px; }
+</style>
+
+<div class="page">
+  <header style="display:grid; gap:14px">
+    <div class="eyebrow">Local LLM benchmark · 2× RTX 5060 Ti 16 GB · 2026-10-12</div>
+    <h1>Qwen3.8-27B at 5.5, 2.3 and 1.7 bits per weight</h1>
+    <p class="lede">Same base model, three compressions, one harness. Tool calling, maths and code survive the squeeze to 2 bits. World knowledge and Thai do not.</p>
+  </header>
+
+  <section aria-labelledby="contenders">
+    <h2 id="contenders">The contenders</h2>
+    <div class="models">
+      <article class="model" style="--c: var(--q5)">
+        <h3>qwen3.8-27b-v3</h3>
+        <div class="bits">5.5<small>bpw · Unsloth UD-Q5_K_XL</small></div>
+        <dl><dt>GGUF</dt><dd>20.9 GB</dd><dt>VRAM</dt><dd>27.3 GB, 2 GPUs (TP 1,1)</dd><dt>Runtime</dt><dd>llama.cpp b11560</dd></dl>
+      </article>
+      <article class="model" style="--c: var(--iq2)">
+        <h3>Underdog Saluki 27B 1.0</h3>
+        <div class="bits">~2.3<small>bpw · IQ2-mix (GSQ-RCO)</small></div>
+        <dl><dt>GGUF</dt><dd>7.9 GB</dd><dt>VRAM</dt><dd>13.4 GB, 1 GPU</dd><dt>Runtime</dt><dd>llama.cpp b11560 (stock)</dd></dl>
+      </article>
+      <article class="model" style="--c: var(--tern)">
+        <h3>Ternary Bonsai 2 27B</h3>
+        <div class="bits">1.72<small>bpw · PQ2_0 {−1, 0, +1}</small></div>
+        <dl><dt>GGUF</dt><dd>7.2 GB</dd><dt>VRAM</dt><dd>12.3 GB, 1 GPU</dd><dt>Runtime</dt><dd>PrismML fork b10754</dd></dl>
+      </article>
+    </div>
+    <p style="color:var(--muted); font-size:0.9rem">VRAM measured with the server loaded at 131072 context, q8_0 KV cache, flash attention on, vision projector loaded.</p>
+  </section>
+
+  <section aria-labelledby="tldr">
+    <h2 id="tldr">Takeaways</h2>
+    <ul class="takeaways">
+      <li><b>Agentic</b><span>Tool calling holds up. On 150 BFCL v3 tasks the 2-bit models score 86.7% and 88.7% vs 82.7% for Q5. That gap is within noise at n=150, so read it as "no loss", which matches Saluki's own model card. Q5 drops most of its points on irrelevance detection (calling a tool when none fits).</span></li>
+      <li><b>Knowledge</b><span>This is where the bits go. ThaiExam 70.6% → 59.9% → 52.0%, A-Level 66.9% → 52.0% → 38.6%, MMLU-Pro 58.6% → 53.6% → 45.0%. The order follows bpw exactly.</span></li>
+      <li><b>Reasoning</b><span>GSM8K, HumanEval and a small thinking-on MMLU-Pro math set are flat across all three (within 1–2 items).</span></li>
+      <li><b>Format</b><span>Asked to "reply with only the letter", Bonsai complied 41% of the time (Q5 99%, Saluki 96%). It tends to explain first, which matters for pipelines that parse terse output.</span></li>
+      <li><b>Speed</b><span>2.0–2.4× faster decode on one GPU, but prefill is roughly equal (~760–880 tok/s at 30k tokens), so on long agent prompts the gain is in generation only. Thinking traces run ~35% longer on the 2-bit models.</span></li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="quality">
+    <h2 id="quality">Quality</h2>
+    <div class="legend">
+      <span style="--c: var(--q5)"><i></i>Q5_K_XL (5.5 bpw)</span>
+      <span style="--c: var(--iq2)"><i></i>Saluki IQ2-mix (~2.3)</span>
+      <span style="--c: var(--tern)"><i></i>Bonsai ternary (1.72)</span>
+    </div>
+    <div class="bench" id="bench"></div>
+  </section>
+
+  <section aria-labelledby="speed">
+    <h2 id="speed">Speed</h2>
+    <p>Measured through llama-server's own <code>timings</code>, not llama-bench. The long-prompt rows send real code (HumanEval sources) with a unique nonce first, so nothing comes from the prompt cache.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Metric</th><th class="q5">Q5_K_XL</th><th class="iq2">Saluki</th><th class="tern">Bonsai</th></tr></thead>
+        <tbody>
+          <tr><td>Decode, short context (median of 110 replies)</td><td>17.3 tok/s</td><td>34.0 tok/s</td><td>41.9 tok/s</td></tr>
+          <tr><td>Prefill, ~7.6k-token prompt</td><td>837 tok/s</td><td>814 tok/s</td><td>884 tok/s</td></tr>
+          <tr><td>Decode after ~7.6k tokens</td><td>16.6 tok/s</td><td>30.7 tok/s</td><td>39.2 tok/s</td></tr>
+          <tr><td>Prefill, ~30.3k-token prompt</td><td>852 tok/s</td><td>762 tok/s</td><td>814 tok/s</td></tr>
+          <tr><td>Decode after ~30.3k tokens</td><td>14.5 tok/s</td><td>28.1 tok/s</td><td>32.8 tok/s</td></tr>
+          <tr><td>Wall time, 30.3k prompt + 128 tokens out</td><td>45.4 s</td><td>45.3 s</td><td>42.1 s</td></tr>
+          <tr><td>Avg reasoning length, thinking on</td><td>2,477 tok</td><td>3,320 tok</td><td>3,393 tok</td></tr>
+          <tr><td>Avg time per thinking-on answer</td><td>147 s</td><td>101 s</td><td>85 s</td></tr>
+          <tr><td>GPUs used</td><td>2</td><td>1</td><td>1</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="method">
+    <h2 id="method">Method</h2>
+    <ul class="plain">
+      <li><b>Same harness, same items, same order</b> for all three: OpenAI-compatible <code>/v1/chat/completions</code>, <code>temperature 0</code>, <code>seed 0</code>, <code>enable_thinking: false</code> except the thinking-on set. Each model runs with its normal production profile (131072 ctx, q8_0 KV, FA on).</li>
+      <li><b>BFCL v3</b> (Berkeley Function Calling Leaderboard), 150 tasks: simple 40, multiple 30, parallel 30, parallel_multiple 20, irrelevance 30. Native tool calls checked AST-style against the official possible-answer files (name, required args, allowed values, no extra args). It follows the leaderboard's rules, but it isn't the official checker.</li>
+      <li><b>MMLU-Pro</b>: 10 questions per category × 14 categories (up to 10 options). <b>ThaiExam</b> (typhoon-ai/thai_exam): all 354 O-NET, TGAT and A-Level test questions.</li>
+      <li><b>Multiple choice is grammar-constrained.</b> A GBNF grammar allows exactly one option letter, so every model answers directly. Without it, Bonsai ignored "letter only" 59% of the time, and the explanation worked as chain-of-thought (85/140 on MMLU-Pro, above Q5's 82). Q5 scored the same with or without the grammar, so the constraint doesn't hurt models that comply.</li>
+      <li><b>GSM8K</b>: 60 random test problems, CoT allowed, answer after <code>####</code>. <b>HumanEval</b>: 50 problems, generated code executed against the official tests with a 15 s timeout.</li>
+      <li><b>Thinking on</b>: 6 MMLU-Pro math questions, 12k-token budget. Too small to rank anything; it's there for reasoning length and time.</li>
+      <li><b>Noise.</b> These are small samples. Treat 1–3 item differences as noise. The Thai and MMLU-Pro gaps are well beyond that, the BFCL gap is borderline.</li>
+    </ul>
+  </section>
+
+  <section class="note" aria-labelledby="prism">
+    <h3 id="prism">PSA for Bonsai users: prism-b10772 regression</h3>
+    <p>The newest PrismML llama.cpp release at the time (<code>prism-b10772-e8fd209</code>, Windows CUDA 13.3) broke this setup. After about five requests the model starts emitting <code>//////</code> and stays broken until restart, even for "What is the capital of France?". A freshly started server answers fine, so a one-question smoke test won't catch it. Same flags and the same request sequence on <code>prism-b10754</code>: no problem. This matches PrismML issue #342. The likely cause is the short-query MMA flash-attention change for quantized V (#189), and a fix is proposed in #353. If you run Bonsai with a quantized KV cache and FA, stay on b10754 or test with 10+ requests before upgrading.</p>
+  </section>
+
+  <footer>
+    Rig: AMD FX-8350, 12 GB RAM, 2× RTX 5060 Ti 16 GB, Windows 10, NVIDIA driver with CUDA 13.3. Upstream llama.cpp b11560 (v0.6.0), PrismML fork prism-b10754. Datasets: BFCL v3 (Apache-2.0), MMLU-Pro (MIT), GSM8K (MIT), HumanEval (MIT), ThaiExam (Apache-2.0).
+  </footer>
+</div>
+
+<script>
+  // [label, subtitle, n, qwen, saluki, bonsai]
+  const RESULTS = [
+    ['BFCL v3 tool calling', '150 tasks', 150, 124, 130, 133],
+    ['  parallel calls', '30 tasks', 30, 22, 25, 27],
+    ['  irrelevance (no call is correct)', '30 tasks', 30, 20, 25, 23],
+    ['ThaiExam, all', '354 questions', 354, 250, 212, 184],
+    ['  A-Level', '127 questions', 127, 85, 66, 49],
+    ['MMLU-Pro', '140 questions, 14 categories', 140, 82, 75, 63],
+    ['GSM8K', '60 problems', 60, 59, 58, 59],
+    ['HumanEval (executed)', '50 problems', 50, 47, 47, 46],
+    ['Follows "reply with only the letter"', '140 prompts', 140, 139, 134, 58],
+  ];
+  const MODELS = [['Q5', '--q5'], ['Saluki', '--iq2'], ['Bonsai', '--tern']];
+  const root = document.getElementById('bench');
+  for (const [label, sub, n, ...scores] of RESULTS) {
+    const g = document.createElement('div');
+    g.className = 'group';
+    const best = Math.max(...scores);
+    const isSub = label.startsWith('  ');
+    g.innerHTML = `<header><h3${isSub ? ' style="font-weight:600;color:var(--muted)"' : ''}>${label.trim()}</h3><span>${sub}</span></header>`;
+    scores.forEach((s, i) => {
+      const pct = (100 * s) / n;
+      const row = document.createElement('div');
+      row.className = 'bar' + (s === best ? ' best' : '');
+      row.style.setProperty('--c', `var(${MODELS[i][1]})`);
+      row.innerHTML = `<span class="who">${MODELS[i][0]}</span><span class="track"><span class="fill" style="width:${pct.toFixed(1)}%"></span></span><span class="val">${s}/${n} · ${pct.toFixed(1)}%</span>`;
+      g.append(row);
+    });
+    root.append(g);
+  }
+</script>

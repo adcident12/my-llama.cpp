@@ -114,9 +114,9 @@ files — no writes, no updates to the llama.cpp install itself.
 
 ### Upgrading llama.cpp itself
 
-Currently on **build 11146** (`7fe450e19`), upgraded from b9949 -> b10155 ->
+Currently on **build 11560** (`b13a93a3d`), upgraded from b9949 -> b10155 ->
 b10355 -> b10430 -> b10448 -> b10456 -> b10549 -> b10566 -> b10621 -> b10809
--> b11146. There's no
+-> b11146 -> b11560. There's no
 auto-updater — llama.cpp ships as a plain zip of binaries. The process,
 in case it needs repeating:
 
@@ -290,6 +290,19 @@ Upgrade history:
   `qwen3.8-27b-v3` (3/3 tool-calling, vision correct, GPUs balanced evenly
   under the new TP fix), and `muse-glimmer-30b` (4/4 tool-calling) - no
   regressions anywhere.
+- **b11146 → b11560** (v0.6.0, 2026-10-12, ~410 commits). Still only
+  12.4/13.4 Windows CUDA builds; the 13.4 one runs on this 13.3 driver as
+  before. The release dropped `libomp140.x86_64.dll` and
+  `llama-template-analysis.exe` (nothing here uses either). `--help` diff
+  against b11146: every flag in `config.json` is still there; new are
+  `--moe-cache-mib` (GPU cache for MoE experts kept on the CPU) and
+  `--spec-draft-sampling {greedy,probabilistic}` (default greedy, so MTP
+  profiles behave as before); and **the default port changed 8080 → 9931**,
+  which doesn't matter here because every profile passes its own `--port`.
+  Re-verified `saluki-27b` (new, below) and `qwen3.8-27b-v3` on it: tool
+  call, streamed tool call, a `read_file` → `get_weather` → answer loop and
+  vision all pass, and 760 benchmark requests each (see "Three
+  compressions of Qwen3.8-27B") produced no garbled output.
 
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
@@ -706,6 +719,7 @@ tensor types, so this profile runs from a separate install of the
 
 ```
 C:\llama.cpp-prism\                       <- fork, release prism-b10754-2459f68 (win-cuda-13.3 build)
+├── _broken-b10772\                       <- prism-b10772, rolled back (see below)
 └── models\
     ├── Ternary-Bonsai-2-27B-PQ2_0.gguf
     └── Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf
@@ -717,6 +731,19 @@ profile points at it with per-profile `llamaDir`/`modelsDir` (see
 "Adding/editing profiles"), so `llama start bonsai2-27b`, the dashboard and
 the tray all work the same as for any other profile. Still one model at a
 time: starting it means stopping whatever else is loaded.
+
+**prism-b10772 was tried and rolled back (2026-10-12).** After a few requests
+the model starts answering `//////…` and stays broken: the 6th request of
+the benchmark set below broke it every time, after which even "What is the
+capital of France?" came back as slashes. A fresh server answers fine, so a
+one-question check after upgrading does not catch it. Same settings and the
+same request sequence on prism-b10754: 9/9 fine. It's PrismML's open issue
+[#342](https://github.com/PrismML-Eng/llama.cpp/issues/342); the likely cause
+is #189 in that release (short-query flash-attention path with a quantized
+KV cache, which this profile uses), with a fix proposed in #353. The b10772
+files are kept in `_broken-b10772\`. **Before upgrading the fork again**,
+run more than a single request through it, e.g. 10+ tool calls with
+thinking off, and check none come back as slashes.
 
 Clients connect exactly as for the other profiles — base URL
 `http://localhost:11435/v1`, same API key — with model id `bonsai2-27b`.
@@ -748,6 +775,62 @@ lists malformed or looping tool calls as an open model limitation, which
 would show up in long agentic sessions rather than in an 8-call battery.
 Same file: `reasoning_effort: "high"` returns HTTP 500 (use `xhigh`, the
 default, or `medium`), and exactly one system message is allowed, first.
+
+## Three compressions of Qwen3.8-27B, benchmarked (`saluki-27b`)
+
+[ConwayResearch/Underdog-Saluki-27B-1.0](https://huggingface.co/ConwayResearch/Underdog-Saluki-27B-1.0)
+is a third compression of the same base model: an IQ2-mix GGUF (~2.3
+bits/weight, 7.89GB, built on ISTA-DASLab's GSQ-RCO quant) tuned to keep
+tool calling intact. Unlike Bonsai it's a standard GGUF and runs on stock
+`C:\llama.cpp`. The profile mirrors `bonsai2-27b`: one GPU (`--device
+CUDA1`), 131072 ctx, q8_0 KV, Q8_0 mmproj for vision, sampling from the
+model card (temp 0.6 / top_p 0.95 / top_k 20).
+
+All three were run through the same harness on 2026-10-12 (llama.cpp b11560
+for qwen and Saluki, prism-b10754 for Bonsai), each at its normal profile
+settings: thinking off, temperature 0, same questions in the same order.
+Public datasets, scored automatically:
+
+| | qwen3.8-27b-v3 | saluki-27b | bonsai2-27b |
+|---|---|---|---|
+| Quant (bits/weight) | UD-Q5_K_XL (~5.5) | IQ2-mix (~2.3) | PQ2_0 ternary (1.72) |
+| File / VRAM @131072 ctx | 20.9GB / 27.3GB on 2 GPUs | 7.9GB / 13.4GB on 1 GPU | 7.2GB / 12.3GB on 1 GPU |
+| BFCL v3 tool calling (150) | 124 (82.7%) | 130 (86.7%) | 133 (88.7%) |
+| MMLU-Pro, 10/category (140) | **82 (58.6%)** | 75 (53.6%) | 63 (45.0%) |
+| ThaiExam: O-NET/TGAT/A-Level (354) | **250 (70.6%)** | 212 (59.9%) | 184 (52.0%) |
+| GSM8K (60) | 59 | 58 | 59 |
+| HumanEval, executed (50) | 47 | 47 | 46 |
+| MMLU-Pro math, thinking on (6) | 4 | 4 | 4 |
+| Obeys "reply with only the letter" (140) | 139 | 134 | **58** |
+| Generation, short context | 17.3 tok/s | 34.0 tok/s | 41.9 tok/s |
+| Prefill / generation @ ~30k-token prompt | 852 / 14.5 tok/s | 762 / 28.1 tok/s | 814 / 32.8 tok/s |
+| Avg reasoning length, thinking on | 2,477 tokens | 3,320 tokens | 3,393 tokens |
+
+What it says:
+- **Tool calling, maths and code survive the compression**; on BFCL both
+  small models even score a little higher (the gap is within noise at n=150,
+  and it matches Saluki's own card, where the full model also scored lower).
+  The full model loses most of its BFCL points on "irrelevance" (calling a
+  tool when none fits: 20/30 vs 25/30 and 23/30).
+- **Knowledge and Thai are what compression costs**: Thai exams 71% → 60%
+  (Saluki) → 52% (Bonsai), A-Level hardest hit (67% → 52% → 39%). MMLU-Pro
+  follows the same order. For Thai prompts (e.g. Video Studio's translation)
+  this is the number that matters.
+- **Bonsai doesn't follow output-format instructions well**: asked for a
+  single letter it explained first 59% of the time. For anything that needs
+  terse, exact output, Saluki or the full model is the safer pick.
+- **Speed**: the small models generate 2–2.4x faster. Prefill is about the
+  same on all three (~760–880 tok/s), so on long agent-harness prompts the
+  advantage shrinks to the generation part. With thinking on, the small
+  models think ~35% longer but still finish first.
+
+Method notes: multiple choice uses a GBNF grammar that only allows one
+option letter, so every model answers directly (otherwise Bonsai's habit of
+explaining first works as chain-of-thought and lifted it to 85/140 on
+MMLU-Pro, above qwen). BFCL is checked AST-style against the official
+possible-answer files (same strictness as the leaderboard), not by the
+official checker itself. Samples are fixed with seed 0. Small samples:
+treat 1–3 item differences as noise.
 
 ## Streaming + tool calls: verified working on this build
 
