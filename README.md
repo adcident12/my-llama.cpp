@@ -79,7 +79,6 @@ C:\llama.cpp
 └── models\
     ├── Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf              <- "qwen3.6-main" profile
     ├── mmproj-Qwen3.6-35B-A3B-F16.gguf              <- vision projector for "qwen3.6-main" only
-    ├── qwen36-a3b-claude-coder-q4_K_M.gguf          <- "qwen3.6-coder" profile (broken, see below)
     ├── Qwen3.6-35B-A3B-MTP-GGUF\
     │   └── Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf          <- "qwen3.6-mtp" profile (default)
     ├── Qwen3.6-27B-Fable-Fusion-711-MTP-GGUF\
@@ -95,14 +94,23 @@ C:\llama.cpp
     │   └── Qwen3.6-27B-UD-Q4_K_XL.gguf              <- "qwen3.6-27b" profile - plain dense, no MTP
     ├── Qwen3.6-27B-MTP-GGUF\
     │   └── Qwen3.6-27B-UD-Q4_K_XL.gguf              <- "qwen3.6-27b-mtp" profile - plain dense + MTP
-    ├── Qwen3.8-27B-GGUF\
-    │   ├── Qwen3.8-27B-UD-Q5_K_XL.gguf              <- "qwen3.8-27b" AND "qwen3.8-27b-mtp" profiles (Dynamic V2.0, same file, MTP head baked in)
-    │   └── mmproj-F16.gguf                          <- vision projector, shared by ALL FOUR qwen3.8-27b* profiles (V2 and V3 alike, byte-identical)
-    └── Qwen3.8-27B-GGUF-v3\
-        ├── Qwen3.8-27B-UD-Q5_K_XL.gguf              <- "qwen3.8-27b-v3" AND "qwen3.8-27b-v3-mtp" profiles (Dynamic V3.0 re-quant, different file despite same name)
-        └── MTP\
-            └── mtp-Qwen3.8-27B-Q4_0.gguf             <- standalone MTP draft model for "qwen3.8-27b-v3-mtp" - new in V3, didn't exist for V2
+    ├── Qwen3.8-27B-GGUF-v3\
+    │   ├── Qwen3.8-27B-UD-Q5_K_XL.gguf              <- "qwen3.8-27b-v3" AND "qwen3.8-27b-v3-mtp" profiles (Unsloth Dynamic V3.0)
+    │   ├── mmproj-F16.gguf                          <- vision projector, shared by every qwen3.8-27b* profile
+    │   └── MTP\
+    │       └── mtp-Qwen3.8-27B-Q4_0.gguf            <- standalone MTP draft model for "qwen3.8-27b-v3-mtp"
+    ├── Qwen3.8-27B-bartowski\Qwen3.8-27B-Q5_K_M.gguf          <- "qwen3.8-27b-bartowski" (quantizer comparison)
+    ├── Qwen3.8-27B-ggml-org\Qwen3.8-27B-Q4_K_M.gguf           <- "qwen3.8-27b-ggml-org" (quantizer comparison)
+    ├── Qwen3.8-27B-NVFP4-cdiamond\Qwen3.8-27B-iMatrix-NVFP4-MTP.gguf  <- "qwen3.8-27b-nvfp4" (quantizer comparison)
+    ├── Underdog-Saluki-27B-1.0-IQ2-mix.gguf         <- "saluki-27b"
+    └── mmproj-Underdog-Saluki-27B-1.0-Q8_0.gguf     <- vision projector for "saluki-27b"
 ```
+
+**Removed 2026-10-12 to free disk space:** the `qwen3.6-coder` profile and
+its file (it never loaded, see below), and the Unsloth Dynamic V2.0
+Qwen3.8-27B files (`UD-Q5_K_XL` behind the `qwen3.8-27b`/`qwen3.8-27b-mtp`
+profiles, plus the unused `UD-Q6_K_XL`), superseded by the V3.0 re-quant.
+Their write-ups below are kept as history.
 
 Each profile's `"model"` field in `config.json` is a path relative to
 `modelsDir` — e.g. `qwen3.6-mtp`'s is
@@ -389,8 +397,8 @@ silent, intermittent failure for any agentic client with a modest
 | `--alias <profile-name>` | Without it, the model's `id` in `/v1/models` is the full Windows file path (`C:\llama.cpp\models\...gguf`), which is awkward/fragile to put in client configs. Now each profile reports a clean id: `qwen3.6-mtp`, `qwen3.6-main`, `qwen3.6-coder`. |
 | `--api-key-file secrets\llama-api-key.txt` | Required auth for every client, generated once with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. The file lives outside `config.json`/git (see `.gitignore`) — the flag only points at a path, never the secret itself, so the repo stays safe to push. Verified: no/wrong key -> `HTTP 401`, correct key -> `HTTP 200`. |
 
-`qwen3.6-coder` (`qwen36-a3b-claude-coder-q4_K_M.gguf`) is marked `"broken": true`
-in `config.json` — it fails to load on the installed llama-server build with
+`qwen3.6-coder` (`qwen36-a3b-claude-coder-q4_K_M.gguf`, profile and file
+removed 2026-10-12) was marked `"broken": true` — it fails to load on the installed llama-server build with
 `error loading model hyperparameters: key qwen35moe.rope.dimension_sections
 has wrong array length; expected 4, got 3`. That file was converted with an
 **older** llama.cpp conversion script (3-section RoPE) than what this build
@@ -831,6 +839,50 @@ MMLU-Pro, above qwen). BFCL is checked AST-style against the official
 possible-answer files (same strictness as the leaderboard), not by the
 official checker itself. Samples are fixed with seed 0. Small samples:
 treat 1–3 item differences as noise.
+
+### Same size class, four quantizers (`qwen3.8-27b-bartowski`, `-ggml-org`, `-nvfp4`)
+
+Qwen publishes no GGUF of Qwen3.8-27B (only BF16 and FP8 safetensors), so
+"official" isn't on the table. Instead, the Unsloth file behind
+`qwen3.8-27b-v3` was run against three other quantizers' builds of the same
+weights in the same 17-21GB class, with the same harness and profile
+settings (2 GPUs, 131072 ctx, q8_0 KV), on 2026-10-12/13:
+
+| | Unsloth UD-Q5_K_XL | bartowski Q5_K_M | ggml-org Q4_K_M | cdiamond NVFP4 |
+|---|---|---|---|---|
+| File / VRAM | 20.9GB / 27.3GB | 20.9GB / 27.6GB | 19.0GB / 26.1GB | **17.1GB / 23.7GB** |
+| BFCL (150) | 124 | 123 | 123 | 126 |
+| MMLU-Pro (140) | 82 | 85 | 84 | 83 |
+| ThaiExam (354) | **250** | 242 | 247 | 240 |
+| GSM8K (60) / HumanEval (50) | 59 / 47 | 58 / 48 | 59 / 47 | 59 / 49 |
+| Decode, short ctx | 17.3 tok/s | 17.1 | 18.1 | **20.2** |
+| Prefill / decode @ ~30k prompt | 852 / 14.5 | 1021 / 15.2 | 1077 / 16.0 | **1303 / 17.6** |
+| 30k prompt + 128 tokens, wall | 45.4 s | 38.8 s | 36.9 s | **31.4 s** |
+
+- **Quality is a wash.** Every row is within 1-3 items except ThaiExam,
+  where Unsloth leads NVFP4 by 10 (2.8 points), borderline at n=354.
+- **Speed is not.** Unsloth's file is the slowest at prefill; the NVFP4
+  build (mostly Blackwell-native FP4, Q5_K/Q6_K on sensitive tensors) is
+  +53% prefill and +17% decode at 30k, with 3.6GB less VRAM.
+- ggml-org's plain Q4_K_M matches the Q5 files on quality at 2GB less.
+
+**With MTP** (both files carry an MTP head; 15 GSM8K problems, greedy):
+
+| | `qwen3.8-27b-v3-mtp` | `qwen3.8-27b-nvfp4-mtp` |
+|---|---|---|
+| Decode | 37.1 tok/s (2.2x) | 38.6 tok/s (1.9x) |
+| Draft acceptance | 93.6% | 92.1% |
+| Prefill / decode @ ~30k prompt | 673 / 27.4 | 962 / 25.7 |
+| 30k prompt + 128 tokens, wall | 51.2 s | 38.2 s |
+| VRAM | 29.3GB (GPU1 at 15.4/16.3GB) | 25.5GB |
+
+MTP roughly doubles decode for both, but costs prefill (the draft head also
+runs over the prompt), so on a 30k prompt with a short answer NVFP4 is
+faster *without* MTP. Acceptance here is greedy (temp 0); at the profiles'
+temp 1.0 it was 64-79% in earlier tests, so expect less in real use.
+**For opencode-style long-prompt agent work, `qwen3.8-27b-nvfp4-mtp` is the
+best of the dense 27B profiles on this rig**: same quality as the Unsloth
+file, the fastest prefill of the MTP options, and ~4GB more VRAM headroom.
 
 ## Streaming + tool calls: verified working on this build
 

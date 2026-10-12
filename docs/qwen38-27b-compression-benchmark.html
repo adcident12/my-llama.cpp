@@ -168,6 +168,47 @@
     </div>
   </section>
 
+  <section aria-labelledby="quantizers">
+    <div class="eyebrow">Follow-up · 2026-10-13</div>
+    <h2 id="quantizers">Same size class, four quantizers</h2>
+    <p>Qwen publishes no GGUF of Qwen3.8-27B, only BF16 and FP8 safetensors. So the Unsloth file above was run against three other quantizers' builds of the same weights in the same 17–21 GB class. Harness and profile were identical: 2 GPUs, 131072 ctx, q8_0 KV.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Metric</th><th class="q5">Unsloth UD-Q5_K_XL</th><th>bartowski Q5_K_M</th><th>ggml-org Q4_K_M</th><th>cdiamond NVFP4</th></tr></thead>
+        <tbody>
+          <tr><td>GGUF / VRAM</td><td>20.9 / 27.3 GB</td><td>20.9 / 27.6 GB</td><td>19.0 / 26.1 GB</td><td><b>17.1 / 23.7 GB</b></td></tr>
+          <tr><td>BFCL v3 (150)</td><td>124</td><td>123</td><td>123</td><td>126</td></tr>
+          <tr><td>MMLU-Pro (140)</td><td>82</td><td>85</td><td>84</td><td>83</td></tr>
+          <tr><td>ThaiExam (354)</td><td><b>250</b></td><td>242</td><td>247</td><td>240</td></tr>
+          <tr><td>GSM8K (60) / HumanEval (50)</td><td>59 / 47</td><td>58 / 48</td><td>59 / 47</td><td>59 / 49</td></tr>
+          <tr><td>Decode, short context</td><td>17.3 tok/s</td><td>17.1 tok/s</td><td>18.1 tok/s</td><td><b>20.2 tok/s</b></td></tr>
+          <tr><td>Prefill @ ~30k prompt</td><td>852 tok/s</td><td>1021 tok/s</td><td>1077 tok/s</td><td><b>1303 tok/s</b></td></tr>
+          <tr><td>Decode @ ~30k prompt</td><td>14.5 tok/s</td><td>15.2 tok/s</td><td>16.0 tok/s</td><td><b>17.6 tok/s</b></td></tr>
+          <tr><td>Wall, 30k prompt + 128 out</td><td>45.4 s</td><td>38.8 s</td><td>36.9 s</td><td><b>31.4 s</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul class="plain">
+      <li><b>Quality is a wash.</b> Every row is within 1–3 items, except ThaiExam, where Unsloth leads NVFP4 by 10. That's 2.8 points, borderline at n=354.</li>
+      <li><b>Speed is not.</b> The Unsloth file has the slowest prefill. The NVFP4 build (mostly Blackwell-native FP4, Q5_K/Q6_K on sensitive tensors, imatrix from agent sessions) gets +53% prefill and +17% decode at 30k, with 3.6 GB less VRAM on an sm_120 card.</li>
+      <li>ggml-org's plain Q4_K_M matches the Q5 files on every benchmark here while being 2 GB smaller.</li>
+    </ul>
+    <h3>With MTP speculative decoding</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>15 GSM8K problems, greedy</th><th class="q5">Unsloth + standalone MTP</th><th>NVFP4 + embedded MTP</th></tr></thead>
+        <tbody>
+          <tr><td>Decode (no MTP → MTP)</td><td>17.2 → 37.1 tok/s</td><td>20.0 → 38.6 tok/s</td></tr>
+          <tr><td>Draft acceptance (n-max 2)</td><td>93.6%</td><td>92.1%</td></tr>
+          <tr><td>Prefill / decode @ ~30k prompt</td><td>673 / 27.4 tok/s</td><td>962 / 25.7 tok/s</td></tr>
+          <tr><td>Wall, 30k prompt + 128 out</td><td>51.2 s</td><td>38.2 s</td></tr>
+          <tr><td>VRAM</td><td>29.3 GB (GPU1 15.4/16.3)</td><td>25.5 GB</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>MTP roughly doubles decode, but it costs prefill because the draft head also runs over the prompt. With a 30k prompt and a short answer, NVFP4 is faster without MTP. Acceptance was measured at temp 0. At temp 1.0 earlier runs saw 64–79%, so expect less in real sampling. For long-prompt agentic coding on this rig, NVFP4 + MTP is the pick: same quality, the fastest prefill among the MTP options, and about 4 GB more headroom.</p>
+  </section>
+
   <section aria-labelledby="method">
     <h2 id="method">Method</h2>
     <ul class="plain">
