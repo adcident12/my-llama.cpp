@@ -1183,6 +1183,24 @@ hot-reloaded.
 ## Troubleshooting
 
 - `llama status` shows CRASHED → `llama logs 200` to see why the process died.
+- **`got exception: bad allocation`, then a crash on
+  `GGML_ASSERT(batch.slot_batched || batch.size() == 0)`** (seen 2026-10-13
+  with opencode left running overnight on `qwen3.8-27b-nvfp4-mtp`, context at
+  58-90k tokens). The machine ran out of *virtual* memory: Windows logged
+  "low virtual memory" (System log, event 2004) naming llama-server at
+  42-45GB committed. On Windows every VRAM allocation is also charged
+  against system commit, so a fully offloaded 2-GPU profile already commits
+  ~30GB at load, and the automatic pagefile caps commit at RAM + 3×RAM
+  (12 + 36GB here). What grows on top is the per-slot **context
+  checkpoints** (default 32): reproduced with a growing opencode-style
+  conversation, commit went 30.7 → 34.8GB by 46k tokens with defaults and
+  with `--cache-ram 0` alone, but only 30.7 → 32.2GB by 84k tokens with
+  `--ctx-checkpoints 4` added. **Every profile now passes
+  `--cache-ram 0 --ctx-checkpoints 4`.** The cost: fewer rollback points for
+  the recurrent layers, so a client that rewrites earlier history (e.g.
+  context compaction) may re-process more of the prompt. If it still happens,
+  set a fixed, larger pagefile (System Properties → Advanced → Virtual
+  memory) or fix the missing 4GB of RAM.
 - "model file not found" on start → check the `model` path in `config.json`
   is correct relative to `modelsDir`.
 - If `llama` isn't recognized after `install.ps1`, open a new terminal.
