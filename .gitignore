@@ -3,3 +3,6 @@ logs/*.log
 .claude/
 node_modules/
 secrets/
+bench/data/
+bench/.venv/
+logs/firewall/
