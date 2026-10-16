@@ -7,7 +7,9 @@ what a new session needs first. The user writes in Thai; answer in Thai. On long
 
 ## The machine and its hard limits
 - 2x RTX 5060 Ti 16 GB (Blackwell, sm_120), AMD FX-8350, **12 GB RAM visible** (4x4 GB
-  installed, one stick or slot looks dead), Windows 10, driver reports CUDA 13.3.
+  installed and all four DIMMs detected at 667 MHz, so 4 GB is reserved/unmapped rather than
+  a dead stick), Windows 10, driver 617.14 reports CUDA (UMD) 13.4. PCIe is gen2 max:
+  GPU 0 x8, GPU 1 x4.
 - **Virtual memory is the real ceiling, not VRAM.** On Windows every VRAM allocation is also
   charged to system commit, so a fully offloaded 2-GPU profile commits ~30 GB at load, and
   the automatic pagefile caps commit at RAM + 3x RAM (~48 GB). Per-slot context checkpoints
@@ -17,12 +19,19 @@ what a new session needs first. The user writes in Thai; answer in Thai. On long
   opencode requests up to 110k tokens, zero errors, zero Windows event-2004 warnings.
 - Disk C: ~86 GB free (2026-10-15). The pagefile grows on its own when big models load.
 
-## Current state (2026-10-15)
-- llama.cpp **b11560** (v0.6.0) in `C:\llama.cpp`; rollback copy `_backup-b11146`.
-- PrismML fork (Bonsai only) **prism-b10754** in `C:\llama.cpp-prism`. **prism-b10772 is
-  broken** (after ~5 requests it answers `//////` until restart, PrismML issue #342; kept in
-  `_broken-b10772`). Before upgrading the fork again, run 10+ tool calls with thinking off
-  and check none come back as slashes; a single smoke test passes on the broken build.
+## Current state (2026-10-16)
+- llama.cpp **b11669** (v0.7.0, 2026-10-16) in `C:\llama.cpp`; rollback copies `_backup-b11560`
+  and `_backup-b11146`. v0.7.0 = b11669 by commit (the vX tag has no binaries).
+- **`bonsai2-27b` runs on mainline since 2026-10-16** (b11669 supports Bonsai 2, PR #29600),
+  using the `Q2_0` file from `prism-ml/Ternary-Bonsai-2-27B-gguf-dev` in
+  `models\Ternary-Bonsai-2-27B-Q2_0\`. Mainline rejects the fork-only `PQ2_0`/`PTQ1_0`, and
+  a build older than b11669 loads Q2_0 but prints gibberish. vs the fork: decode -8% (37.4 vs
+  40.7 tok/s), +0.9 GB VRAM, same answers. Fallback profile `bonsai2-27b-prism` = PrismML
+  fork **prism-b10754** in `C:\llama.cpp-prism`. **prism-b10772 is broken** (`//////` after
+  ~5 requests, PrismML #342, still open; #353 closed unmerged). Before trusting any Bonsai
+  build, run 10+ tool calls with thinking off and check none come back as slashes.
+- `qwen3.8-27b-nvfp4-mtp` has `--spec-draft-n-ubatch 128` (new in b11669): -0.5 GB VRAM on
+  GPU1, -0.9 GB commit, speed unchanged (sweep in its config note).
 - Running now: **`qwen3.8-27b-nvfp4-mtp`** (both GPUs), the profile the user uses with
   opencode. `defaultProfile` in config.json is still `qwen3.6-mtp`.
 - Video Studio (`C:\Users\Rockman\Documents\video-studio`, own CLAUDE.md) translates Thai
@@ -78,7 +87,9 @@ other machines (opencode-monitor on 192.168.0.100 asked for it). Tools: `llama_s
 `llama_profiles`, `llama_slots`, `llama_requests` (per-request tokens/speed/cache reuse parsed
 from the log), `llama_runs` (starts, crashes, classified error counts), `llama_clients`
 (inbound connections per source IP from the Windows Firewall log, and "Invalid API Key"
-events matched to an IP). Code in `lib/mcp.js`, `lib/logstats.js`, `lib/clients.js`.
+events matched to an IP), `llama_machine` (hardware, commit charge, pagefile, disk, GPU
+driver/CUDA, llama.cpp builds per profile, event-2004 count). Code in `lib/mcp.js`,
+`lib/logstats.js`, `lib/clients.js`, `lib/machine.js`.
 llama-server never logs client IPs (only `-v` would, and that logs prompts too), so source
 IPs come from firewall logging: `scripts\firewall-log.ps1` (admin; `-Off` reverts) writes to
 `logs\firewall\` (gitignored); a SYSTEM task copies the inbound lines for our ports to `inbound.log` every minute because Windows ACLs the raw file to SYSTEM/admins. Loopback is logged too. Since ~2026-10-07 something

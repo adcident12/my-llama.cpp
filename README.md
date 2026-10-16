@@ -122,9 +122,9 @@ files — no writes, no updates to the llama.cpp install itself.
 
 ### Upgrading llama.cpp itself
 
-Currently on **build 11560** (`b13a93a3d`), upgraded from b9949 -> b10155 ->
+Currently on **build 11669** (`620d2225c`, v0.7.0), upgraded from b9949 -> b10155 ->
 b10355 -> b10430 -> b10448 -> b10456 -> b10549 -> b10566 -> b10621 -> b10809
--> b11146 -> b11560. There's no
+-> b11146 -> b11560 -> b11669. There's no
 auto-updater — llama.cpp ships as a plain zip of binaries. The process,
 in case it needs repeating:
 
@@ -144,7 +144,7 @@ in case it needs repeating:
 3. Download **both** `llama-b<N>-bin-win-cuda-<X.X>-x64.zip` (the binaries)
    and `cudart-llama-bin-win-cuda-<X.X>-x64.zip` (CUDA runtime DLLs) matching
    the CUDA version your driver reports (`nvidia-smi` header, "CUDA Version")
-   — this driver reports 13.3. **The exact `X.X` a release ships can change**
+   — this driver reports 13.4 (driver 617.14 prints it as "CUDA UMD Version"). **The exact `X.X` a release ships can change**
    (b11146/v0.5.0 dropped the 13.3 build entirely, shipping only 12.4 and
    13.4) — if your exact version isn't offered, pick the nearest newer one;
    CUDA's minor-version compatibility means a 13.3 driver runs a 13.4-built
@@ -311,6 +311,20 @@ Upgrade history:
   call, streamed tool call, a `read_file` → `get_weather` → answer loop and
   vision all pass, and 760 benchmark requests each (see "Three
   compressions of Qwen3.8-27B") produced no garbled output.
+- **b11560 → b11669** (v0.7.0, 2026-10-16). The `v0.7.0` tag points at the
+  same commit as `b11669` (620d2225c); its release notes have no "Nightly
+  build" line any more, so match the tag's commit to a `bNNNNN` release
+  instead. Same 55 files as b11560; `--help` diff: nothing removed, one new
+  flag `--spec-draft-n-ubatch`. Every flag in `config.json` still present.
+  Relevant notes: context checkpoints now survive slot save/restore (#26004),
+  draft checkpoints no longer carry the full KV (#30514), and mainline now
+  supports Prism Bonsai 2 27B (#29600; only the `Q2_0` packing, not the
+  `PQ2_0` file; `bonsai2-27b` moved to mainline, see the Bonsai section). Re-verified
+  `qwen3.8-27b-nvfp4-mtp`: `bench/validate.py` tool call, streamed call,
+  tool loop and vision all OK. Speed (8k / 30k prompt, greedy, filler = this
+  repo's code because `bench/data` was gone, so not byte-identical to the
+  earlier run): prefill 1097 / 1076 tok/s (was 916 / 962), decode 31.2 /
+  26.3 tok/s (was 34.6 / 25.7), MTP acceptance 0.69 / 0.64.
 
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
@@ -714,6 +728,16 @@ between directly:
   outright (`qwen3.6-mtp` at ~74 tok/s beats every dense MTP variant here).
 
 ## Bonsai 2 27B: a ternary Qwen3.8-27B on a forked llama.cpp (`bonsai2-27b`)
+
+> **2026-10-16: `bonsai2-27b` moved to mainline llama.cpp** (b11669 / v0.7.0, which
+> supports Bonsai 2 via PR #29600). Mainline only reads the `Q2_0` packing, published in
+> [prism-ml/Ternary-Bonsai-2-27B-gguf-dev](https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf-dev)
+> as `Ternary-Bonsai-2-27B-Q2_0-prism-fork-required.gguf` (7.1 GB, stored here as
+> `models\Ternary-Bonsai-2-27B-Q2_0\Ternary-Bonsai-2-27B-Q2_0.gguf`); the `PQ2_0` file below
+> fails on mainline with `invalid ggml type 142`. Same tests on both runtimes:
+> `bench/validate.py` all OK, 12/12 thinking-off tool calls with no slashes (#342), same
+> English/Thai answers; mainline decodes at 37.4 tok/s vs 40.7 on the fork and uses 13.2 vs
+> 12.3 GB on GPU1. The fork setup described below is kept as profile `bonsai2-27b-prism`.
 
 [prism-ml/Ternary-Bonsai-2-27B-gguf](https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf)
 is Qwen3.8-27B — the same base as the `qwen3.8-27b*` profiles — with its
