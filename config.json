@@ -146,7 +146,7 @@
       "cacheTypeK": "q8_0",
       "cacheTypeV": "q8_0",
       "extraArgs": "--alias bonsai2-27b --cache-ram 0 --ctx-checkpoints 4 --device CUDA1 --mmproj-device CUDA1 --no-reasoning-preserve --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.05 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt --mmproj C:\\llama.cpp-prism\\models\\Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf",
-      "note": "FALLBACK (2026-10-16): the original profile on the PrismML fork, kept in case mainline regresses; bonsai2-27b now runs mainline. Prism ML's Ternary-Bonsai-2-27B (Qwen3.8-27B with ternary {-1,0,+1} weights, 1.72 bits/weight, PQ2_0 pack = 7.2GB vs 20.9GB for the Q5_K_XL the qwen3.8-27b-v3 profile uses). Stock llama.cpp cannot run these files (it rejects the PQ2_0/PTQ1_0 types), so this profile sets its own llamaDir/modelsDir pointing at a separate install of the PrismML-Eng/llama.cpp fork (C:\\llama.cpp-prism, release prism-b10754-2459f68, win-cuda-13.3 build) - C:\\llama.cpp is untouched and the fork does not upgrade with it; update it separately from github.com/PrismML-Eng/llama.cpp/releases. Runs on ONE GPU by design (--device CUDA1 plus --mmproj-device CUDA1, the card with no display attached): ~12.4GB used at 131072 ctx with vision loaded, ~3.8GB free on that card, GPU0 left entirely free. Loads in ~15s. Sampling from the model card (thinking mode, min_p=0.05). Template defaults to xhigh reasoning effort; the card says 'high' returns HTTP 500 and 'low' behaves like xhigh, so only xhigh/medium are usable. TESTED 2026-10-03 through the control server on port 11435: tool-calling 8/8 (3x 1024-budget + 5x 400-budget), streamed tool call assembles into valid JSON with finish_reason tool_calls, a 3-step tool loop (read_file -> get_weather -> final answer) completed correctly, vision correct, ~42 tok/s (vs ~17 for qwen3.8-27b-v3 unaccelerated, ~74 for qwen3.6-mtp). NOT verified: answer quality (the vendor's '98.2% of FP16' figure is their own measurement; this setup has no eval harness) and long agentic sessions - the vendor's KNOWN_ISSUES.md lists malformed/looping tool calls as an open model limitation."
+      "note": "FALLBACK (2026-10-16): the original profile on the PrismML fork, kept in case mainline regresses; bonsai2-27b now runs mainline. Prism ML's Ternary-Bonsai-2-27B (Qwen3.8-27B with ternary {-1,0,+1} weights, 1.72 bits/weight, PQ2_0 pack = 7.2GB vs 20.9GB for the Q5_K_XL the qwen3.8-27b-v3 profile uses). Stock llama.cpp cannot run these files (it rejects the PQ2_0/PTQ1_0 types), so this profile sets its own llamaDir/modelsDir pointing at a separate install of the PrismML-Eng/llama.cpp fork (C:\\llama.cpp-prism, release prism-b12128-d7b2896 since 2026-11-04, previously prism-b10754-2459f68, win-cuda-13.3 build) - C:\\llama.cpp is untouched and the fork does not upgrade with it; update it separately from github.com/PrismML-Eng/llama.cpp/releases. Runs on ONE GPU by design (--device CUDA1 plus --mmproj-device CUDA1, the card with no display attached): ~12.4GB used at 131072 ctx with vision loaded, ~3.8GB free on that card, GPU0 left entirely free. Loads in ~15s. Sampling from the model card (thinking mode, min_p=0.05). Template defaults to xhigh reasoning effort; the card says 'high' returns HTTP 500 and 'low' behaves like xhigh, so only xhigh/medium are usable. TESTED 2026-10-03 through the control server on port 11435: tool-calling 8/8 (3x 1024-budget + 5x 400-budget), streamed tool call assembles into valid JSON with finish_reason tool_calls, a 3-step tool loop (read_file -> get_weather -> final answer) completed correctly, vision correct, ~42 tok/s (vs ~17 for qwen3.8-27b-v3 unaccelerated, ~74 for qwen3.6-mtp). NOT verified: answer quality (the vendor's '98.2% of FP16' figure is their own measurement; this setup has no eval harness) and long agentic sessions - the vendor's KNOWN_ISSUES.md lists malformed/looping tool calls as an open model limitation."
     },
     "saluki-27b": {
       "model": "Underdog-Saluki-27B-1.0-IQ2-mix.gguf",
@@ -212,6 +212,32 @@
       "cacheTypeV": "q8_0",
       "extraArgs": "--alias qwen3.8-27b-nvfp4-mtp --cache-ram 0 --ctx-checkpoints 4 --tensor-split 1,1 --no-reasoning-preserve --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-n-ubatch 128 --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt --mmproj C:\\llama.cpp\\models\\Qwen3.8-27B-GGUF-v3\\mmproj-F16.gguf",
       "note": "Same file as qwen3.8-27b-nvfp4, with its embedded MTP head used for speculative decoding (--spec-type draft-mtp --spec-draft-n-max 2, the same draft depth as the other MTP profiles). Added 2026-10-13. [2026-10-16, b11669: added --spec-draft-n-ubatch 128 (MTP draft context batch; default = -ub 512). Sweep 0/256/128/64 at 8k/32k prompts: VRAM GPU1 13394/13036/12858/12768 MiB, commit 36.5/35.9/35.6/35.4 GB, prefill and decode within noise down to 128; 64 started to slow at 32k (prefill 1026 vs ~1060, decode 24.4 vs ~27). 128 saves ~0.5 GB VRAM and ~0.9 GB commit for free.]"
+    },
+    "flint-40b": {
+      "model": "Flint-GGUF/flint-UD-Q4_K_XL.gguf",
+      "host": "0.0.0.0",
+      "port": 11435,
+      "ctxSize": 131072,
+      "gpuLayers": 999,
+      "parallel": 1,
+      "flashAttn": "on",
+      "cacheTypeK": "q8_0",
+      "cacheTypeV": "q8_0",
+      "note": "Recursive Flint (unsloth/flint-GGUF UD-Q4_K_XL, 25.05GB, Apache-2.0): MoE coding-agent model, 39.8B total / ~2.5B active per token. Needs llama.cpp v0.8.0 or newer. Sampling from the card (temp 1.0, top_p 0.95, top_k 20). Unlike the other profiles it does NOT pass --no-reasoning-preserve, because the card asks clients to keep reasoning_content in history. Text only. Added 2026-11-04; see README for the benchmark.",
+      "extraArgs": "--alias flint-40b --cache-ram 0 --ctx-checkpoints 4 --tensor-split 1,1 --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt"
+    },
+    "swift-1.5-mtp": {
+      "model": "Swift-1.5-GSQ/Swift-1.5-Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf",
+      "host": "0.0.0.0",
+      "port": 11435,
+      "ctxSize": 131072,
+      "gpuLayers": 999,
+      "parallel": 1,
+      "flashAttn": "on",
+      "cacheTypeK": "q8_0",
+      "cacheTypeV": "q8_0",
+      "note": "UkisAI Swift 1.5 (post-trained Qwen3.8-27B for agentic and coding work, GSQ-RCO IQ3_S with embedded MTP head, 12.12GB). Custom license: Swift Open License v1.0, read it before commercial use. The vendor claims 58.5% fewer thinking tokens than the base. Settings match qwen3.8-27b-nvfp4-mtp. Added 2026-11-04; see README for the benchmark.",
+      "extraArgs": "--alias swift-1.5-mtp --cache-ram 0 --ctx-checkpoints 4 --tensor-split 1,1 --no-reasoning-preserve --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-n-ubatch 128 --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt --mmproj C:\\llama.cpp\\models\\Swift-1.5-GSQ\\mmproj-Swift-1.5-Qwen3.8-27B-F16.gguf"
     }
   }
 }

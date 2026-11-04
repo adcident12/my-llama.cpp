@@ -19,17 +19,15 @@ what a new session needs first. The user writes in Thai; answer in Thai. On long
   opencode requests up to 110k tokens, zero errors, zero Windows event-2004 warnings.
 - Disk C: ~86 GB free (2026-10-15). The pagefile grows on its own when big models load.
 
-## Current state (2026-10-16)
-- llama.cpp **b11669** (v0.7.0, 2026-10-16) in `C:\llama.cpp`; rollback copies `_backup-b11560`
-  and `_backup-b11146`. v0.7.0 = b11669 by commit (the vX tag has no binaries).
-- **`bonsai2-27b` runs on mainline since 2026-10-16** (b11669 supports Bonsai 2, PR #29600),
-  using the `Q2_0` file from `prism-ml/Ternary-Bonsai-2-27B-gguf-dev` in
-  `models\Ternary-Bonsai-2-27B-Q2_0\`. Mainline rejects the fork-only `PQ2_0`/`PTQ1_0`, and
-  a build older than b11669 loads Q2_0 but prints gibberish. vs the fork: decode -8% (37.4 vs
-  40.7 tok/s), +0.9 GB VRAM, same answers. Fallback profile `bonsai2-27b-prism` = PrismML
-  fork **prism-b10754** in `C:\llama.cpp-prism`. **prism-b10772 is broken** (`//////` after
-  ~5 requests, PrismML #342, still open; #353 closed unmerged). Before trusting any Bonsai
-  build, run 10+ tool calls with thinking off and check none come back as slashes.
+## Current state (2026-11-05)
+- llama.cpp **b11960** (v0.8.0) in `C:\llama.cpp`; rollback copies `_backup-b11669`, `_backup-b11560`,
+  `_backup-b11146`. Newer nightlies exist; Clover (#31306) needs one.
+- **`bonsai2-27b` runs on mainline since 2026-10-16**, using the `Q2_0` file from
+  `prism-ml/Ternary-Bonsai-2-27B-gguf-dev` in `models\Ternary-Bonsai-2-27B-Q2_0\`. Mainline rejects
+  the fork-only `PQ2_0`/`PTQ1_0`. Fallback profile `bonsai2-27b-prism` = PrismML fork
+  **prism-b12128** in `C:\llama.cpp-prism`, rollback `_backup-b10754`. prism-b10772 was broken
+  (`//////` after ~5 requests, PrismML #342, still open). Before trusting any Bonsai build, run
+  `bench/regress.py`.
 - `qwen3.8-27b-nvfp4-mtp` has `--spec-draft-n-ubatch 128` (new in b11669): -0.5 GB VRAM on
   GPU1, -0.9 GB commit, speed unchanged (sweep in its config note).
 - Running now: **`qwen3.8-27b-nvfp4-mtp`** (both GPUs), the profile the user uses with
@@ -39,7 +37,13 @@ what a new session needs first. The user writes in Thai; answer in Thai. On long
   alongside a one-GPU profile (`bonsai2-27b` or `saluki-27b`). It is not running now.
 
 ## Which profile for what (from the benchmarks in README)
-- **opencode / agentic coding: `qwen3.8-27b-nvfp4-mtp`.** Same quality as Unsloth's
+- **New 2026-11-04, worth trying for opencode: `swift-1.5-mtp`.** Thinking on it scored 50/61 vs
+  45 for nvfp4-mtp (p=0.06), finished 30% sooner and uses 4 GB less VRAM, but prefill is slower
+  (729 vs 1012 tok/s at 30k) and it has a custom license. `flint-40b` is about twice as fast
+  (52 tok/s, 1807 prefill at 30k) but weaker: 42/61, BFCL 119, no vision. Its template cannot turn
+  thinking off and it answers one-letter grammar prompts at random, so it needs `mc_think`.
+  Not yet tried in real agent sessions.
+- **opencode / agentic coding, current: `qwen3.8-27b-nvfp4-mtp`.** Same quality as Unsloth's
   `qwen3.8-27b-v3` (within noise everywhere, ThaiExam -10/354), fastest prefill of the MTP
   options (962 vs 673 tok/s at 30k), 38.6 tok/s decode greedy, ~4 GB more VRAM headroom.
 - **One GPU, Thai matters: `saluki-27b`** (Thai 60%, follows terse-output instructions).
@@ -66,7 +70,8 @@ what a new session needs first. The user writes in Thai; answer in Thai. On long
 Scripts and every result from 2026-10-12/13. Needs a venv with `pyarrow` and the datasets
 in `bench/data` (not committed; re-download from Hugging Face: gorilla-llm BFCL v3 +
 possible_answer, openai/gsm8k, TIGER-Lab/MMLU-Pro, openai/openai_humaneval,
-typhoon-ai/thai_exam). `bench.py <label> [suites]` talks to :11435 at temp 0 with thinking
+typhoon-ai/thai_exam). `regress.py` = thinking-off calls looking for slashes. `mc_think` = the
+thinking-on suite, the only one comparable for models that always think. `bench.py <label> [suites]` talks to :11435 at temp 0 with thinking
 off, appends to `results/<label>.jsonl` and resumes after a crash. Multiple choice is
 GBNF-constrained to one letter on purpose (otherwise models that explain first get free
 chain-of-thought). `validate.py` = upgrade check (tool call, streamed call, tool loop,
@@ -112,6 +117,6 @@ env vars override (test on 127.0.0.1). Not started by the tray yet.
 2. Optional: add vision to `qwen3.6-mtp` and check MTP speed holds; benchmark it.
 3. Optional: delete `Qwen3.8-27B-bartowski` and `Qwen3.8-27B-ggml-org` (~40 GB) if no
    longer wanted; ask first.
-4. Check for a PrismML release that fixes #342 (proposed fix #353).
+4. Try `swift-1.5-mtp` in real opencode sessions against nvfp4-mtp; the user decides the switch.
 5. The English benchmark report artifact (claude.ai/artifact/CDiTfhLQ5ptix8fpCKvbys,
    copy in `docs/`) is private until the user shares it.

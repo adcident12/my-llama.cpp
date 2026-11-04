@@ -102,6 +102,8 @@ C:\llama.cpp
     ├── Qwen3.8-27B-bartowski\Qwen3.8-27B-Q5_K_M.gguf          <- "qwen3.8-27b-bartowski" (quantizer comparison)
     ├── Qwen3.8-27B-ggml-org\Qwen3.8-27B-Q4_K_M.gguf           <- "qwen3.8-27b-ggml-org" (quantizer comparison)
     ├── Qwen3.8-27B-NVFP4-cdiamond\Qwen3.8-27B-iMatrix-NVFP4-MTP.gguf  <- "qwen3.8-27b-nvfp4" (quantizer comparison)
+    ├── Flint-GGUF\flint-UD-Q4_K_XL.gguf             <- "flint-40b"
+    ├── Swift-1.5-GSQ\                               <- "swift-1.5-mtp" (model with MTP head + its mmproj)
     ├── Underdog-Saluki-27B-1.0-IQ2-mix.gguf         <- "saluki-27b"
     └── mmproj-Underdog-Saluki-27B-1.0-Q8_0.gguf     <- vision projector for "saluki-27b"
 ```
@@ -122,9 +124,9 @@ files — no writes, no updates to the llama.cpp install itself.
 
 ### Upgrading llama.cpp itself
 
-Currently on **build 11669** (`620d2225c`, v0.7.0), upgraded from b9949 -> b10155 ->
+Currently on **build 11960** (`8642541b2`, v0.8.0), upgraded from b9949 -> b10155 ->
 b10355 -> b10430 -> b10448 -> b10456 -> b10549 -> b10566 -> b10621 -> b10809
--> b11146 -> b11560 -> b11669. There's no
+-> b11146 -> b11560 -> b11669 -> b11960. There's no
 auto-updater — llama.cpp ships as a plain zip of binaries. The process,
 in case it needs repeating:
 
@@ -325,6 +327,19 @@ Upgrade history:
   repo's code because `bench/data` was gone, so not byte-identical to the
   earlier run): prefill 1097 / 1076 tok/s (was 916 / 962), decode 31.2 /
   26.3 tok/s (was 34.6 / 25.7), MTP acceptance 0.69 / 0.64.
+- **b11669 → b11960** (v0.8.0, 2026-11-04). The release notes name the build
+  again (`Nightly build: b11960`, also in the `nightly-tag.txt` asset). Adds
+  `llama-connect.exe`, nothing removed. `--help` diff: new `--connect`,
+  `--connect-code`, `--models-memory-margin`; every flag in `config.json` still
+  present. Flint support is in this build; Clover (#31306, merged 11-02) is not.
+  Re-verified with `bench/validate.py` and `bench/regress.py` (thinking-off
+  tool calls with a probe after each, looking for slashes):
+  `qwen3.8-27b-nvfp4-mtp` 19/20, `bonsai2-27b` 15/15, `saluki-27b` 13/15,
+  `qwen3.6-mtp` 14/15, none garbled, tool loop OK on all, vision OK on all that
+  have it. `qwen3.8-27b-nvfp4-mtp`, greedy: decode 39.1 tok/s, acceptance 92.8%,
+  8k / 30k prompt prefill 1100 / 1030 tok/s, wall 11.0 / 33.8 s. That is about
+  level with b11669's prefill, so no clear speed gain from this release. Commit
+  held at 30.1GB up to 46k tokens.
 
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
@@ -750,8 +765,8 @@ tensor types, so this profile runs from a separate install of the
 [PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp) fork:
 
 ```
-C:\llama.cpp-prism\                       <- fork, release prism-b10754-2459f68 (win-cuda-13.3 build)
-├── _broken-b10772\                       <- prism-b10772, rolled back (see below)
+C:\llama.cpp-prism\                       <- fork, release prism-b12128-d7b2896 (win-cuda-13.3 build)
+├── _backup-b10754\                       <- previous known-good build
 └── models\
     ├── Ternary-Bonsai-2-27B-PQ2_0.gguf
     └── Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf
@@ -772,10 +787,13 @@ one-question check after upgrading does not catch it. Same settings and the
 same request sequence on prism-b10754: 9/9 fine. It's PrismML's open issue
 [#342](https://github.com/PrismML-Eng/llama.cpp/issues/342); the likely cause
 is #189 in that release (short-query flash-attention path with a quantized
-KV cache, which this profile uses), with a fix proposed in #353. The b10772
-files are kept in `_broken-b10772\`. **Before upgrading the fork again**,
-run more than a single request through it, e.g. 10+ tool calls with
-thinking off, and check none come back as slashes.
+KV cache, which this profile uses), with a fix proposed in #353. **Before
+upgrading the fork again**, run `bench/regress.py`: more than a single request,
+with thinking off, checking none come back as slashes.
+
+**prism-b12128 passes that check (2026-11-04):** 20/20 and 15/15 tool calls with
+a probe after each, no slashes, vision and tool loop OK, so it replaced b10754.
+Issue #342 is still open upstream, so `_backup-b10754\` stays as the rollback.
 
 Clients connect exactly as for the other profiles — base URL
 `http://localhost:11435/v1`, same API key — with model id `bonsai2-27b`.
@@ -907,6 +925,53 @@ temp 1.0 it was 64-79% in earlier tests, so expect less in real use.
 **For opencode-style long-prompt agent work, `qwen3.8-27b-nvfp4-mtp` is the
 best of the dense 27B profiles on this rig**: same quality as the Unsloth
 file, the fastest prefill of the MTP options, and ~4GB more VRAM headroom.
+
+### New coding models: Flint and Swift 1.5 (`flint-40b`, `swift-1.5-mtp`)
+
+Tested 2026-11-04 on llama.cpp b11960 against the profile opencode uses.
+
+- **Flint** ([unsloth/flint-GGUF](https://huggingface.co/unsloth/flint-GGUF)
+  UD-Q4_K_XL, Apache-2.0): Recursive's MoE coding-agent model, 39.8B total,
+  ~2.5B active per token. Text only.
+- **Swift 1.5** ([ukisai GSQ-RCO IQ3_S-mtp](https://huggingface.co/ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF),
+  custom Swift Open License): Qwen3.8-27B post-trained for agentic work.
+
+| | `qwen3.8-27b-nvfp4-mtp` | `swift-1.5-mtp` | `flint-40b` |
+|---|---|---|---|
+| File / VRAM @131072 ctx | 17.1GB / 25.2GB | **12.1GB / 21.0GB** | 25.1GB / 28.3GB (GPU0 15.0/16.3) |
+| Commit at load | 30.0GB | **26.3GB** | 31.2GB |
+| **Thinking on, MMLU-Pro + Thai (61)** | 45 (74%) | **50 (82%)** | 42 (69%) |
+| Thinking on: avg tokens / whole set | 1,758 / 53 min | **1,240** / 37 min | 2,183 / **33 min** |
+| Replies cut at 8192 tokens | 6 | 3 | 5 |
+| BFCL (150) | 126* | 125 | 119 |
+| GSM8K (60) / HumanEval (50) | 59 / 49* | 59 / 47 | 57 / 47 |
+| MMLU-Pro (140) / ThaiExam (354), one-letter grammar | 83 / 240* | 80 / 240 | not measurable |
+| Decode, short ctx | 39.1 tok/s (greedy) | 40.9 | **73.8** |
+| Prefill / decode @ ~30k prompt | 1012 / 25.5 | 729 / 28.7 | **1807 / 52.0** |
+| 30k prompt + 128 tokens, wall | 35.0 s | 46.0 s | **17.9 s** |
+| Vision | yes | yes | no |
+
+\* Measured on `qwen3.8-27b-nvfp4` (same file, no MTP) on b11560; MTP shouldn't
+change these answers, but it wasn't re-run.
+
+- **Swift 1.5** gives the best answers per unit of time here. It scored highest
+  with thinking on, though on 61 items that is only suggestive (paired against
+  nvfp4-mtp: 5 vs 0 unique wins, p=0.06; against Flint: 9 vs 1, p=0.02). It
+  thought 29% less than nvfp4-mtp on average, well short of the vendor's 58.5%,
+  and still finished the set 30% sooner. Its weakness is prefill: compaction and
+  other long re-reads take longer. Read the license before commercial use.
+- **Flint** is the fastest by far and needs no MTP, but tool calling and thinking-on
+  answers are its weakest here, and at 15.0/16.3GB on GPU0 it leaves little room.
+- **Flint's template cannot turn thinking off.** `enable_thinking: false` is ignored,
+  so its BFCL, GSM8K and HumanEval ran with thinking on and an 8192-token budget,
+  while the others ran with it off: those rows favour Flint on answers and penalise
+  it on time. The one-letter grammar can't measure it at all: forced to answer
+  straight away, it says `I` (its usual first word) whatever the question, even with
+  an empty think block forced first (1/12, against 9/12 when left to think).
+- Not tested: real multi-step agent sessions. Too big for 32GB VRAM: DeepSeek V4.1
+  Flash (72GB+), MiniMax M3.1 Flash (129GB+), Mistral Large 4. Flash-Next Coder must
+  keep 29.6GB resident, likely leaving too little VRAM for a long context (not tried).
+  Clover needs a build newer than v0.8.0.
 
 ## Streaming + tool calls: verified working on this build
 
