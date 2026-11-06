@@ -9,9 +9,30 @@ const btnRestart = document.getElementById('btn-restart');
 const btnOpen = document.getElementById('btn-open');
 
 let lastState = null;
+let statusTimer = null;
+let logsTimer = null;
+let authExpired = false;
+
+// A proxied login that has ended answers 401/403: stop polling so an open tab
+// doesn't keep sending refused requests. Other errors keep polling.
+function onAuthExpired() {
+  if (authExpired) return;
+  authExpired = true;
+  clearInterval(statusTimer);
+  clearInterval(logsTimer);
+  const notice = document.createElement('div');
+  notice.setAttribute('role', 'alert');
+  notice.style.cssText = 'padding:12px 16px;background:#7f1d1d;color:#fff;font-weight:600;text-align:center';
+  notice.textContent = 'หมดเวลาเข้าสู่ระบบแล้ว — รีเฟรชหน้านี้หลังเข้าสู่ระบบใหม่';
+  document.body.prepend(notice);
+}
 
 async function api(path, opts) {
   const res = await fetch(path, opts);
+  if (res.status === 401 || res.status === 403) {
+    onAuthExpired();
+    throw new Error(`HTTP ${res.status}`);
+  }
   return res.json();
 }
 
@@ -108,5 +129,5 @@ btnOpen.addEventListener('click', () => {
 loadProfiles();
 refreshStatus();
 refreshLogs();
-setInterval(refreshStatus, 3000);
-setInterval(refreshLogs, 3000);
+statusTimer = setInterval(refreshStatus, 3000);
+logsTimer = setInterval(refreshLogs, 3000);
