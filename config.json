@@ -161,32 +161,6 @@
       "note": "ConwayResearch/Underdog-Saluki-27B-1.0: Qwen3.8-27B squeezed to 7.89GB (IQ2-mix, ~2.3 bits/weight, built on ISTA-DASLab's GSQ-RCO quant) and tuned to keep tool calling intact. Unlike bonsai2-27b it is a standard GGUF, so it runs on the stock C:\\llama.cpp build. Runs on ONE GPU like bonsai2-27b (--device CUDA1, the card without the display). Sampling from the model card for thinking mode (temp 0.6, top_p 0.95, top_k 20); the card suggests thinking off + temp 0 for fast direct tool calls. Vision via the card's Q8_0 mmproj. See README for the 3-way benchmark against qwen3.8-27b-v3 and bonsai2-27b.",
       "extraArgs": "--alias saluki-27b --cache-ram 0 --ctx-checkpoints 4 --device CUDA1 --mmproj-device CUDA1 --no-reasoning-preserve --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt --mmproj C:\\llama.cpp\\models\\mmproj-Underdog-Saluki-27B-1.0-Q8_0.gguf"
     },
-    "qwen3.8-27b-bartowski": {
-      "model": "Qwen3.8-27B-bartowski/Qwen3.8-27B-Q5_K_M.gguf",
-      "host": "0.0.0.0",
-      "port": 11435,
-      "ctxSize": 131072,
-      "gpuLayers": 999,
-      "parallel": 1,
-      "flashAttn": "on",
-      "cacheTypeK": "q8_0",
-      "cacheTypeV": "q8_0",
-      "extraArgs": "--alias qwen3.8-27b-bartowski --cache-ram 0 --ctx-checkpoints 4 --tensor-split 1,1 --no-reasoning-preserve --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt --mmproj C:\\llama.cpp\\models\\Qwen3.8-27B-GGUF-v3\\mmproj-F16.gguf",
-      "note": "bartowski/Qwen3.8-27B-GGUF Q5_K_M (20.92GB, imatrix, his re-uploaded 2026-09-11 tensor layout). Same size as Unsloth's UD-Q5_K_XL in qwen3.8-27b-v3, so the two isolate the quantization recipe. Settings identical to qwen3.8-27b-v3. Added 2026-10-12 for the quantizer comparison in README."
-    },
-    "qwen3.8-27b-ggml-org": {
-      "model": "Qwen3.8-27B-ggml-org/Qwen3.8-27B-Q4_K_M.gguf",
-      "host": "0.0.0.0",
-      "port": 11435,
-      "ctxSize": 131072,
-      "gpuLayers": 999,
-      "parallel": 1,
-      "flashAttn": "on",
-      "cacheTypeK": "q8_0",
-      "cacheTypeV": "q8_0",
-      "extraArgs": "--alias qwen3.8-27b-ggml-org --cache-ram 0 --ctx-checkpoints 4 --tensor-split 1,1 --no-reasoning-preserve --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt --mmproj C:\\llama.cpp\\models\\Qwen3.8-27B-GGUF-v3\\mmproj-F16.gguf",
-      "note": "ggml-org/Qwen3.8-27B-GGUF Q4_K_M (18.97GB), the llama.cpp team's own conversion: the closest thing to an official GGUF (Qwen only publishes safetensors). Settings identical to qwen3.8-27b-v3. Added 2026-10-12 for the quantizer comparison in README."
-    },
     "qwen3.8-27b-nvfp4": {
       "model": "Qwen3.8-27B-NVFP4-cdiamond/Qwen3.8-27B-iMatrix-NVFP4-MTP.gguf",
       "host": "0.0.0.0",
@@ -210,7 +184,7 @@
       "flashAttn": "on",
       "cacheTypeK": "q8_0",
       "cacheTypeV": "q8_0",
-      "extraArgs": "--alias qwen3.8-27b-nvfp4-mtp --cache-ram 0 --ctx-checkpoints 4 --tensor-split 1,1 --no-reasoning-preserve --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-n-ubatch 128 --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt --mmproj C:\\llama.cpp\\models\\Qwen3.8-27B-GGUF-v3\\mmproj-F16.gguf",
+      "extraArgs": "--alias qwen3.8-27b-nvfp4-mtp --cache-ram 0 --ctx-checkpoints 4 --tensor-split 1,1 --no-reasoning-preserve --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-n-ubatch 128 --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0.0 --api-key-file C:\\Users\\Rockman\\Documents\\llama-stroller\\secrets\\llama-api-key.txt --mmproj C:\\llama.cpp\\models\\Qwen3.8-27B-GGUF-v3\\mmproj-F16.gguf --metrics",
       "note": "Same file as qwen3.8-27b-nvfp4, with its embedded MTP head used for speculative decoding (--spec-type draft-mtp --spec-draft-n-max 2, the same draft depth as the other MTP profiles). Added 2026-10-13. [2026-10-16, b11669: added --spec-draft-n-ubatch 128 (MTP draft context batch; default = -ub 512). Sweep 0/256/128/64 at 8k/32k prompts: VRAM GPU1 13394/13036/12858/12768 MiB, commit 36.5/35.9/35.6/35.4 GB, prefill and decode within noise down to 128; 64 started to slow at 32k (prefill 1026 vs ~1060, decode 24.4 vs ~27). 128 saves ~0.5 GB VRAM and ~0.9 GB commit for free.]"
     },
     "flint-40b": {
