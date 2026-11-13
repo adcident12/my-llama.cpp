@@ -20,9 +20,10 @@ what a new session needs first. The user writes in Thai; answer in Thai. On long
 - Disk C: ~99 GB free (2026-11-06, after clearing caches and two models). The pagefile grows on
   its own when big models load.
 
-## Current state (2026-11-06)
-- llama.cpp **b11960** (v0.8.0) in `C:\llama.cpp`; rollback copy `_backup-b11669` (older ones
-  deleted 2026-11-06). Newer nightlies exist; Clover (#31306) needs one.
+## Current state (2026-11-14)
+- llama.cpp **b12359** (v1.0.0, 2026-11-14) in `C:\llama.cpp`, the **CUDA 13.5** build (no 13.4
+  build any more; runs fine on this 13.4 driver); rollback copies `_backup-b11960`, `_backup-b11669`.
+  v1.0.0 refuses `image_url` media on private addresses unless `--media-allow-private-urls`.
 - **`bonsai2-27b` runs on mainline since 2026-10-16**, using the `Q2_0` file from
   `prism-ml/Ternary-Bonsai-2-27B-gguf-dev` in `models\Ternary-Bonsai-2-27B-Q2_0\`. Mainline rejects
   the fork-only `PQ2_0`/`PTQ1_0`. Fallback profile `bonsai2-27b-prism` = PrismML fork

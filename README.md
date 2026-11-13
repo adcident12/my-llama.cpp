@@ -124,9 +124,9 @@ files — no writes, no updates to the llama.cpp install itself.
 
 ### Upgrading llama.cpp itself
 
-Currently on **build 11960** (`8642541b2`, v0.8.0), upgraded from b9949 -> b10155 ->
+Currently on **build 12359** (`b1b770d90`, v1.0.0), upgraded from b9949 -> b10155 ->
 b10355 -> b10430 -> b10448 -> b10456 -> b10549 -> b10566 -> b10621 -> b10809
--> b11146 -> b11560 -> b11669 -> b11960. There's no
+-> b11146 -> b11560 -> b11669 -> b11960 -> b12359. There's no
 auto-updater — llama.cpp ships as a plain zip of binaries. The process,
 in case it needs repeating:
 
@@ -148,9 +148,10 @@ in case it needs repeating:
    the CUDA version your driver reports (`nvidia-smi` header, "CUDA Version")
    — this driver reports 13.4 (driver 617.14 prints it as "CUDA UMD Version"). **The exact `X.X` a release ships can change**
    (b11146/v0.5.0 dropped the 13.3 build entirely, shipping only 12.4 and
-   13.4) — if your exact version isn't offered, pick the nearest newer one;
-   CUDA's minor-version compatibility means a 13.3 driver runs a 13.4-built
-   binary fine (verified empirically here, see upgrade history below), it's
+   13.4; b12359/v1.0.0 moved on to 12.4 and 13.5) — if your exact version
+   isn't offered, pick the nearest newer one; CUDA's minor-version
+   compatibility means a 13.3 driver runs a 13.4-built binary, and this 13.4
+   driver runs the 13.5 build (both verified here, see upgrade history below), it's
    only a major-version driver bump that would actually require an
    NVIDIA driver update.
 4. Back up first: move the current `*.exe`/`*.dll` files (not `models\`) into
@@ -340,6 +341,25 @@ Upgrade history:
   8k / 30k prompt prefill 1100 / 1030 tok/s, wall 11.0 / 33.8 s. That is about
   level with b11669's prefill, so no clear speed gain from this release. Commit
   held at 30.1GB up to 46k tokens.
+- **b11960 → b12359** (v1.0.0, 2026-11-14). Notes still name the build
+  (`Nightly build: b12359`). **Windows CUDA builds are now 12.4 and 13.5 only**:
+  installed 13.5 on this 13.4 driver and it runs on both GPUs (same VRAM as
+  before; this release's log no longer prints the device lines, so check VRAM
+  or `/props` `build_info`). Same file set. `--help` diff: `--defrag-thold`
+  removed (unused here); new `--moe-cache-cpu-share`, `--ple`/`--shard`,
+  `--allow-unauthenticated-tools`, `--media-allow-private-urls`, `--tts-lang`,
+  `--tts-voice`, and `f8_e4m3` as a KV cache type. Two security defaults changed:
+  `image_url` media pointing at a local/private address is now refused unless
+  `--media-allow-private-urls` (base64 images, as Open WebUI sends, are fine), and
+  `--cors-origins localhost` now means same-origin only. Every flag in
+  `config.json` still present; `/metrics` still served (Telegraf).
+  Re-verified, validate + regress: `qwen3.8-27b-nvfp4-mtp` 19/20,
+  `swift-1.5-mtp` 15/15, `flint-40b` 13/15, `bonsai2-27b` 15/15, `saluki-27b`
+  13/15, `qwen3.6-mtp` 13/15, none garbled, tool loop OK on all, vision OK on all
+  that have it. `qwen3.8-27b-nvfp4-mtp`, greedy: decode 39.8 tok/s, acceptance
+  92.4%, 8k / 30k prefill **1326 / 1159 tok/s** (was 1100 / 1030), wall 9.5 / 30.9 s
+  (was 11.0 / 33.8), likely the fused NVFP4 MMQ scale (#26048). Commit 29.9 →
+  30.1GB up to 46k tokens.
 
 ## Everyday commands (from any cmd.exe or PowerShell window)
 
