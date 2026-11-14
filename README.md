@@ -341,7 +341,12 @@ Upgrade history:
   8k / 30k prompt prefill 1100 / 1030 tok/s, wall 11.0 / 33.8 s. That is about
   level with b11669's prefill, so no clear speed gain from this release. Commit
   held at 30.1GB up to 46k tokens.
-- **b11960 → b12359** (v1.0.0, 2026-11-14). Notes still name the build
+- **b11960 → b12359** (v1.0.0, 2026-11-14). Adopted from this release:
+  `--load-mode dio` on every profile and `--ctx-checkpoints 8` on
+  `qwen3.8-27b-nvfp4-mtp`, measured under Troubleshooting. Not adopted: the new
+  `f8_e4m3` KV cache type (same 1 byte per value as q8_0, without q8_0's
+  per-block scales), and the MoE expert cache (all MoE profiles here fit in VRAM).
+  Notes still name the build
   (`Nightly build: b12359`). **Windows CUDA builds are now 12.4 and 13.5 only**:
   installed 13.5 on this 13.4 driver and it runs on both GPUs (same VRAM as
   before; this release's log no longer prints the device lines, so check VRAM
@@ -1310,6 +1315,22 @@ hot-reloaded.
   context compaction) may re-process more of the prompt. If it still happens,
   set a fixed, larger pagefile (System Properties → Advanced → Virtual
   memory) or fix the missing 4GB of RAM.
+  **Re-measured on v1.0.0 (2026-11-14), with `--load-mode dio`:** checkpoints are
+  reference-counted now (#30137) but 32 still grows without limit (30.6 → 33.4GB
+  by 53k tokens, still climbing). 16 levels off at 32.5GB, too close to this
+  machine's commit limit. **8 levels off at 31.4GB up to 84k tokens**, so
+  `qwen3.8-27b-nvfp4-mtp` now uses `--ctx-checkpoints 8`: twice the rollback
+  points of 4 for ~1GB commit. The other profiles keep 4 (not measured).
+- **RAM, not commit: `--load-mode dio` on every profile (2026-11-14).** With the
+  default mmap, llama-server keeps the model file's pages in its working set
+  even though the weights live on the GPUs: `qwen3.8-27b-nvfp4-mtp` sat at 8.0GB
+  working set and left 0.4GB of the 12GB free. With `--load-mode dio` (DirectIO,
+  new for Windows in v1.0.0) it is 2.3GB, free RAM 6.1GB, the load takes 56 s
+  instead of 107 s, and speed is unchanged (8k prompt: 1124 / 34.8 tok/s vs
+  1033 / 31.9). The cost is ~0.9GB more commit, because tensors kept on the CPU
+  side are copied instead of mapped. `none` gives the same RAM but loads slower
+  (77 s). One-GPU profiles: `bonsai2-27b` 1.1GB working set, 6.9GB free. The
+  PrismML fork also takes `--load-mode dio`.
 - "model file not found" on start → check the `model` path in `config.json`
   is correct relative to `modelsDir`.
 - If `llama` isn't recognized after `install.ps1`, open a new terminal.

@@ -17,6 +17,11 @@ what a new session needs first. The user writes in Thai; answer in Thai. On long
   on a GGML_ASSERT (opencode overnight, 2026-10-13). **Every profile now has
   `--cache-ram 0 --ctx-checkpoints 4`. Keep them on new profiles.** Verified fixed: 2,550
   opencode requests up to 110k tokens, zero errors, zero Windows event-2004 warnings.
+- **RAM: every profile has `--load-mode dio` (2026-11-14, v1.0.0).** With the default mmap the
+  model file's pages sat in llama-server's working set (8 GB, 0.4 GB of RAM free); with DirectIO
+  it is 2.3 GB and ~6 GB stays free, loads ~2x faster, same speed, ~0.9 GB more commit.
+  `qwen3.8-27b-nvfp4-mtp` uses `--ctx-checkpoints 8` (flat at 31.4 GB to 84k tokens; 16 and 32
+  still grow or sit too close to the commit limit). Keep both on new profiles.
 - Disk C: ~99 GB free (2026-11-06, after clearing caches and two models). The pagefile grows on
   its own when big models load.
 
@@ -142,6 +147,7 @@ env vars override (test on 127.0.0.1). Not started by the tray yet.
    23 of 221 min prefill. Before (146 overnight requests, 32 checkpoints): 0. Redoing the
    ~12k system prefix after a compaction happens either way. Possible middle ground:
    `--ctx-checkpoints 8` (~200 MiB per checkpoint), only after `memgrow.py` shows commit stays flat.
+   DONE 2026-11-14: 8 measured flat on v1.0.0, now on `qwen3.8-27b-nvfp4-mtp` only.
 2. Optional: add vision to `qwen3.6-mtp` and check MTP speed holds; benchmark it.
 3. DONE 2026-11-06: deleted `Qwen3.8-27B-bartowski` and `Qwen3.8-27B-ggml-org`. If more disk is
    needed, offered but not deleted: `muse-glimmer-30b-meta` (18 GB), `qwen3.6-main` (22 GB),
